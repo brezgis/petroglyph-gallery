@@ -1,6 +1,6 @@
 node_modules/
 dist/
 bundle.js
-index.html
+/index.html
 reference/
 *.log
