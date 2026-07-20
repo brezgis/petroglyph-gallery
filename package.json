@@ -1,0 +1,16 @@
+{
+  "name": "petroglyph-gallery",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "FIRST MARKS — an open-air three.js gallery of the world's petroglyphs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --serve",
+    "dist": "node scripts/build.mjs --dist"
+  },
+  "dependencies": {
+    "esbuild": "^0.28.1",
+    "three": "^0.185.1"
+  }
+}
