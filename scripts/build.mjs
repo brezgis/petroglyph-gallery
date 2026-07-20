@@ -13,6 +13,20 @@ const arg = process.argv[2] || '';
 
 const TITLE = 'FIRST MARKS — an open-air gallery of the world’s petroglyphs';
 
+// Favicon: a hand-pecked spiral (after the Fajada Butte sun dagger spiral) on
+// night-sky rock, generated as an inline SVG data URI — no asset files.
+const FAVICON = (() => {
+  const pts = [];
+  const cx = 16, cy = 16.4, turns = 2.55, steps = 100;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps, a = t * turns * 2 * Math.PI - Math.PI * 0.5;
+    const r = 0.8 + t * 11.6 + Math.sin(a * 3.1 + 1.7) * 0.14; // wobble = pecked line
+    pts.push((cx + Math.cos(a) * r).toFixed(1) + ' ' + (cy + Math.sin(a) * r).toFixed(1));
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%23151024"/><path d="M${pts.join(' L')}" fill="none" stroke="%23efe3cc" stroke-width="1.9" stroke-linecap="round" opacity="0.95"/></svg>`;
+  return `<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${svg.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/"/g, "'")}">`;
+})();
+
 const CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:#0d0b14}
@@ -77,6 +91,7 @@ const fullPage = (js, inline) => `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${TITLE}</title>
+${FAVICON}
 <style>${CSS}</style>
 </head>
 <body>
@@ -88,6 +103,7 @@ ${inline ? `<script>${js}</script>` : `<script src="bundle.js"></script>`}
 // Artifact pages are wrapped in a document skeleton at publish time, so this
 // variant has no doctype/html/head/body tags of its own.
 const artifactPage = (js) => `<title>${TITLE}</title>
+${FAVICON}
 <style>${CSS}</style>
 ${BODY}
 <script>${js}</script>`;
