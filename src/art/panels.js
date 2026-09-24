@@ -1,10 +1,12 @@
 // The collection. Each entry is one exhibit: label data (fact-checked against
-// the sources cited) plus a draw() routine that redraws the engraving by hand
-// in metres on the panel face. These are respectful redrawings after the
-// originals, at (or near) published scale — not tracings.
+// the sources cited) plus a hand-drawn draw() routine in metres on the panel
+// face. Where the glyph pipeline (scripts/glyphs/) could extract the real
+// engraving from an openly licensed photograph or drawing, that extraction
+// replaces the hand drawing — see the loop at the bottom of this file.
 
 import { DEG, TAU } from '../util.js';
 import { PHOTOS } from './photos.js';
+import { GLYPHS, GLYPH_CREDITS } from './glyphdata.js';
 
 export const PANELS = {
   // ---------------------------------------------------- NORTH AMERICA
@@ -64,7 +66,7 @@ export const PANELS = {
     date: 'c. 200–1450 CE',
     medium: 'Pecked into basalt boulders',
     scale: 'Figures approximately 1:1.',
-    desc: 'More than 21,000 glyphs crowd this basalt ridge above the Tularosa Basin. Two of its most arresting motifs meet here: a rectangular goggle-eyed mask — its wide-ringed eyes sometimes compared to Mesoamerican rain-deity imagery — and a bighorn sheep run through by arrows, observed so precisely that the fletching still reads after many centuries.',
+    desc: 'More than 21,000 glyphs crowd this basalt ridge above the Tularosa Basin. Two of its most arresting motifs meet here: a round goggle-eyed mask — its wide-ringed eyes sometimes compared to Mesoamerican rain-deity imagery — and a bighorn sheep run through by arrows, observed so precisely that the fletching still reads after many centuries.',
     source: 'U.S. Bureau of Land Management, Three Rivers Petroglyph Site',
     pw: 1.6, ph: 1.9, bw: 2.5, bh: 3.1, bd: 2.0, style: 'darkBasalt', seed: 13,
     draw(g) {
@@ -115,14 +117,14 @@ export const PANELS = {
 
   // ---------------------------------------------------- SOUTH AMERICA
   'toro-muerto': {
-    title: 'The Dancers',
+    title: 'Beasts, Birds & Dancers',
     site: 'Toro Muerto',
     location: 'Arequipa, Peru',
     culture: 'Associated with the Wari era',
     date: 'c. 500–1000 CE',
     medium: 'Pecked into volcanic boulders',
     scale: 'Figures approximately 1:1.',
-    desc: 'Across a desert gorge, some 2,600 carved boulders make Toro Muerto one of the largest rock-art complexes on Earth. Its signature figure is the danzante — a dancer with one arm raised, one lowered, head crowned with zigzag rays. A 2024 study argues that the zigzags and dotted lines swirling around the dancers may notate songs and the geometric visions of ritual: music, drawn.',
+    desc: 'Across a desert gorge, some 2,600 carved boulders make Toro Muerto one of the largest rock-art complexes on Earth. Its signature figure is the danzante — a dancer with one arm raised, one lowered, head crowned with zigzag rays. A 2024 study argues that the zigzags and dotted lines swirling around the dancers may notate songs and the geometric visions of ritual: music, drawn.\n\nThis stone, photographed in 1972, carries a spotted feline, birds, little running figures and a zigzag serpent.',
     source: 'Rozwadowski & Wołoszyn, Cambridge Archaeological Journal 34 (2024)',
     pw: 2.1, ph: 1.7, bw: 3.1, bh: 2.9, bd: 2.3, style: 'varnish2', seed: 15,
     draw(g) {
@@ -146,14 +148,14 @@ export const PANELS = {
   },
 
   'atacama-llamas': {
-    title: 'The Llama Caravan',
-    site: 'Taira, Alto Loa (with sister sites such as Yerbas Buenas)',
+    title: 'The Llama of Yerbas Buenas',
+    site: 'Yerbas Buenas, San Pedro de Atacama (sister site of Taira, Alto Loa)',
     location: 'Atacama Desert, Chile',
     culture: 'Formative-period pastoralists (Taira-Tulán style)',
     date: 'c. 1500 BCE – 1 CE',
     medium: 'Pecked and incised on canyon walls',
-    scale: 'Animals approximately 1:1 with the finest Taira figures.',
-    desc: 'A line of llamas — pregnant females among them, drawn with doubled outlines and full bellies — walks the wall of the Loa canyon behind a small human figure holding a lead rope. For caravan herders crossing the driest desert on Earth, the fertility of the herd was life itself; at Taira the animals are drawn with a tenderness that still reads at fifty paces.',
+    scale: 'Approximately 1:1.',
+    desc: 'A llama stands in profile, ears up, neck high, belly drawn with a single deep curve. At Yerbas Buenas and at Taira on the Loa canyon, whole caravans of such llamas — pregnant females among them — walk the rock behind small human figures holding lead ropes. For caravan herders crossing the driest desert on Earth, the fertility of the herd was life itself; at Taira the animals are drawn with a tenderness that still reads at fifty paces.',
     source: 'Berenguer (2004); Museo Chileno de Arte Precolombino',
     pw: 2.8, ph: 1.4, bw: 3.8, bh: 2.5, bd: 2.2, style: 'varnish', seed: 16,
     draw(g) {
@@ -218,7 +220,7 @@ export const PANELS = {
     date: 'c. 1700–500 BCE',
     medium: 'Ground and pecked into glacier-smoothed granite',
     scale: 'Approximately 1:1.',
-    desc: 'Crews of stroke-figures man long ships with animal-head prows, beneath sun-wheels and axe-raising warriors. Thousands of such ships cover the smoothed granite of Bohuslän — when they were carved the sea lay just below; the land has since risen and left them stranded inland. The red on many Tanum panels today is modern, reversible in-fill applied for visibility — a curatorial practice still debated.',
+    desc: 'Crews of stroke-figures man a long double-keeled ship with curling prows, a smaller boat trailing below; elsewhere on the rock, sun-wheels and axe-raising warriors join them. Thousands of such ships cover the smoothed granite of Bohuslän — when they were carved the sea lay just below; the land has since risen and left them stranded inland. The red on many Tanum panels today is modern, reversible in-fill applied for visibility — a curatorial practice still debated.',
     source: 'UNESCO World Heritage List no. 557 (1994)',
     pw: 2.8, ph: 2.0, bw: 3.9, bh: 3.3, bd: 2.4, style: 'granite', seed: 18,
     draw(g) {
@@ -245,7 +247,7 @@ export const PANELS = {
     date: 'c. 6000 BCE – Iron Age',
     medium: 'Pecked into glacier-polished sandstone',
     scale: 'Approximately 1:1.',
-    desc: "Italy's first World Heritage site is a whole valley of pictures — at least 140,000 recognized figures, likely far more. Among praying figures and duelling warriors blooms the 'Camunian rose': a looping line swirling through nine cup-marks, meaning lost, silhouette so loved it became the official symbol of Lombardy. The square-shielded warriors date the panel's last hands to the Iron Age.",
+    desc: "Italy's first World Heritage site is a whole valley of pictures — at least 140,000 recognized figures, likely far more. Among praying figures and duelling warriors blooms the 'Camunian rose': a looping line swirling through nine cup-marks, meaning lost, silhouette so loved it became the official symbol of Lombardy. Beside this rose at Foppe di Nadro an arms-raised figure dances; elsewhere, square-shielded warriors date the valley's last hands to the Iron Age.",
     source: 'UNESCO World Heritage List no. 94 (1979)',
     pw: 2.0, ph: 1.7, bw: 3.0, bh: 2.9, bd: 2.2, style: 'paleGrey', seed: 19,
     draw(g) {
@@ -278,7 +280,7 @@ export const PANELS = {
     date: 'c. 5200–200 BCE',
     medium: 'Pecked into glacier-smoothed slate',
     scale: 'Approximately 1:1.',
-    desc: "Inside a looping fence line reindeer mill while others graze free — among the earliest depictions of people managing the herds that still define life at this latitude, near the bay the Sámi call Jiepmaluokta, 'bay of seals'. A bear hunt and an elk-prowed boat share the shore. For decades the carvings were painted red for visitors; the paint is now left to fade so the stone can speak in its own grey.",
+    desc: "Inside a looping fence line reindeer mill while others graze free — among the earliest depictions of people managing the herds that still define life at this latitude, near the bay the Sámi call Jiepmaluokta, 'bay of seals'. Fish swim below; elsewhere on the shore, a bear hunt and an elk-prowed boat. For decades the carvings were painted red for visitors; the paint is now left to fade so the stone can speak in its own grey.",
     source: 'UNESCO World Heritage List no. 352 (1985)',
     pw: 2.6, ph: 1.7, bw: 3.6, bh: 3.0, bd: 2.3, style: 'slate', seed: 20,
     draw(g) {
@@ -430,7 +432,7 @@ export const PANELS = {
     date: 'Engravings spanning at least 20,000 years',
     medium: 'Incised and pecked into limestone',
     scale: 'Approximately 1:1.',
-    desc: "Long reed boats crowded with rower-strokes, a rayed sun riding the prow, glide across Gobustan's stones above the Caspian — images that fascinated Thor Heyerdahl. Beside them, figures dance shoulder to shoulder in lines, ancestors of the yalli still danced in Azerbaijan today. The site even has its own instrument: the Gaval Dash, a natural 'tambourine stone' that rings like a drum when struck.",
+    desc: "Long reed boats crowded with rower-strokes, a rayed sun riding the prow, glide across Gobustan's stones above the Caspian — images that fascinated Thor Heyerdahl. Elsewhere on the same stones, figures dance shoulder to shoulder in lines, ancestors of the yalli still danced in Azerbaijan today. The site even has its own instrument: the Gaval Dash, a natural 'tambourine stone' that rings like a drum when struck.",
     source: 'UNESCO World Heritage List no. 1076 (2007)',
     pw: 2.5, ph: 1.9, bw: 3.5, bh: 3.2, bd: 2.4, style: 'darkBasalt', seed: 25,
     draw(g) {
@@ -705,3 +707,14 @@ const LINKS = {
   'wp-herd': 'https://www.blm.gov/visit/vermilion-cliffs-national-monument',
 };
 for (const [id, link] of Object.entries(LINKS)) if (PANELS[id]) PANELS[id].link = link;
+
+// Engravings extracted from reference photographs and drawings by the glyph
+// pipeline (scripts/glyphs/) replace the hand-drawn fallbacks above.
+for (const [id, layers] of Object.entries(GLYPHS)) {
+  const def = PANELS[id];
+  if (!def) continue;
+  def.drawHand = def.draw;
+  def.draw = (g) => { for (const L of layers) g.mask(L); };
+  def.extracted = true;
+  def.glyphCredit = GLYPH_CREDITS[id];
+}

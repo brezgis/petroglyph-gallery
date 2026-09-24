@@ -68,14 +68,72 @@ export class Player {
       if (e.code === 'KeyW') this.autoRun = false;
     });
     window.addEventListener('blur', () => { this.keys = {}; this.autoRun = false; this._lastW = 0; });
+    this._setupTouch();
+  }
+
+  // Touch: left half of the screen is a floating thumbstick (walk; push it
+  // to the rim to run), right half drags the view. Buttons for E / G live
+  // in the UI layer and are wired in ui.touchButtons().
+  _setupTouch() {
+    this.stick = { id: null, x0: 0, y0: 0, x: 0, y: 0 };
+    this.lookTouch = { id: null, x: 0, y: 0 };
+    const c = this.canvas;
+    const R = 56;
+    const knob = () => document.getElementById('stick');
+    c.addEventListener('touchstart', (e) => {
+      if (!this.entered || this.world.state.frozen) return;
+      for (const t of e.changedTouches) {
+        if (t.clientX < innerWidth * 0.45 && this.stick.id === null) {
+          Object.assign(this.stick, { id: t.identifier, x0: t.clientX, y0: t.clientY, x: 0, y: 0 });
+          const k = knob();
+          if (k) { k.style.left = t.clientX + 'px'; k.style.top = t.clientY + 'px'; k.classList.add('on'); }
+        } else if (this.lookTouch.id === null) {
+          Object.assign(this.lookTouch, { id: t.identifier, x: t.clientX, y: t.clientY });
+        }
+      }
+      e.preventDefault();
+    }, { passive: false });
+    c.addEventListener('touchmove', (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === this.stick.id) {
+          let dx = t.clientX - this.stick.x0, dy = t.clientY - this.stick.y0;
+          const d = Math.hypot(dx, dy);
+          if (d > R) { dx *= R / d; dy *= R / d; }
+          this.stick.x = dx / R; this.stick.y = dy / R;
+          const k = knob();
+          if (k) k.style.setProperty('--kx', dx + 'px'), k.style.setProperty('--ky', dy + 'px');
+        } else if (t.identifier === this.lookTouch.id && !this.world.state.frozen) {
+          this.yaw -= (t.clientX - this.lookTouch.x) * 0.0055;
+          this.pitch = clamp(this.pitch - (t.clientY - this.lookTouch.y) * 0.0055, -1.4, 1.4);
+          this.lookTouch.x = t.clientX; this.lookTouch.y = t.clientY;
+        }
+      }
+      e.preventDefault();
+    }, { passive: false });
+    const end = (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === this.stick.id) {
+          this.stick.id = null; this.stick.x = this.stick.y = 0;
+          const k = knob();
+          if (k) { k.classList.remove('on'); k.style.setProperty('--kx', '0px'); k.style.setProperty('--ky', '0px'); }
+        }
+        if (t.identifier === this.lookTouch.id) this.lookTouch.id = null;
+      }
+    };
+    c.addEventListener('touchend', end);
+    c.addEventListener('touchcancel', end);
   }
 
   lock() {
+    // touch devices have no pointer lock; elsewhere it can be refused (e.g.
+    // right after Esc) — both are fine, the drag-look fallback still works
+    if (!this.canvas.requestPointerLock || document.body.classList.contains('touch')) return;
+    const quiet = (p) => { if (p && p.catch) p.catch(() => {}); };
     try {
       const p = this.canvas.requestPointerLock({ unadjustedMovement: true });
-      if (p && p.catch) p.catch(() => { try { this.canvas.requestPointerLock(); } catch (_) {} });
+      if (p && p.catch) p.catch(() => { try { quiet(this.canvas.requestPointerLock()); } catch (_) {} });
     } catch (_) {
-      try { this.canvas.requestPointerLock(); } catch (_) {}
+      try { quiet(this.canvas.requestPointerLock()); } catch (_) {}
     }
   }
 
@@ -108,6 +166,11 @@ export class Player {
       if (k.KeyS || k.ArrowDown) iz -= 1;
       if (k.KeyA || k.ArrowLeft) ix -= 1;
       if (k.KeyD || k.ArrowRight) ix += 1;
+      if (this.stick && this.stick.id !== null) {
+        const dead = 0.15;
+        if (Math.abs(this.stick.x) > dead) ix += this.stick.x;
+        if (Math.abs(this.stick.y) > dead) iz -= this.stick.y;
+      }
     }
 
     if (this.sitting) {
@@ -122,13 +185,14 @@ export class Player {
       }
     }
 
-    const run = k.ShiftLeft || k.ShiftRight || this.autoRun;
+    const stickRun = this.stick && this.stick.id !== null && Math.hypot(this.stick.x, this.stick.y) > 0.95;
+    const run = k.ShiftLeft || k.ShiftRight || this.autoRun || stickRun;
     const speed = run ? 6.1 : 3.3;
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     const rX = -fz, rZ = fx;
     let dx = fx * iz + rX * ix;
     let dz = fz * iz + rZ * ix;
-    const dl = Math.hypot(dx, dz) || 1;
+    const dl = Math.max(1, Math.hypot(dx, dz));   // keys: unit speed; thumbstick: analog
     dx /= dl; dz /= dl;
     const has = ix !== 0 || iz !== 0;
     const kk = 1 - Math.exp(-6.5 * dt);

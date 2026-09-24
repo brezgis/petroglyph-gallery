@@ -99,9 +99,17 @@ function paintGround() {
     ctx.beginPath(); ctx.arc(W(cx), W(cz), r * S, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1;
   };
-  disc(0, 0, PLAZA_R + 0.5, '#8b7c5f', 0.9);
-  ctx.strokeStyle = 'rgba(70,62,48,0.8)'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(W(0), W(0), (PLAZA_R + 0.2) * S, 0, TAU); ctx.stroke();
+  // plaza floor with a feathered edge (the old hard stroke read as a painted
+  // ring on the ground) and a loose border of set stones
+  const pg = ctx.createRadialGradient(W(0), W(0), (PLAZA_R - 1.5) * S, W(0), W(0), (PLAZA_R + 1.8) * S);
+  pg.addColorStop(0, 'rgba(139,124,95,0.9)'); pg.addColorStop(1, 'rgba(139,124,95,0)');
+  ctx.fillStyle = pg;
+  ctx.beginPath(); ctx.arc(W(0), W(0), (PLAZA_R + 1.8) * S, 0, TAU); ctx.fill();
+  for (let i = 0; i < 260; i++) {
+    const a = rng() * TAU, r = PLAZA_R + (rng() - 0.5) * 0.9;
+    ctx.fillStyle = `rgba(${60 + rng() * 30},${54 + rng() * 26},${42 + rng() * 20},${0.35 + rng() * 0.35})`;
+    ctx.beginPath(); ctx.arc(W(Math.cos(a) * r), W(Math.sin(a) * r), (0.12 + rng() * 0.2) * S, 0, TAU); ctx.fill();
+  }
   for (const c of courts) if (c.court) disc(c.x, c.z, 8.8, '#867760', 0.55);
 
   // pebbles + grain

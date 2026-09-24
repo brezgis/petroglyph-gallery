@@ -1,6 +1,22 @@
 // DOM overlay: intro, HUD (crosshair / prompt / toasts / region titles /
 // held-drink chip), and the museum label card.
 
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+// "Engraving after …" line: which image the carved glyph was extracted from
+function glyphCreditHtml(def) {
+  const c = def.glyphCredit;
+  if (!c) return 'Engraving: hand-drawn after published photographs (no openly licensed image was available).';
+  const parts = c.images.map((im) => {
+    const who = esc(im.author) + (im.license ? `, ${esc(im.license)}` : '');
+    return im.page
+      ? `<a href="${esc(im.page)}" target="_blank" rel="noopener">${esc(im.title)}</a> (${who}, Wikimedia Commons)`
+      : `a photograph by ${who}`;
+  });
+  const how = c.traced ? 'traced by hand over' : 'extracted from';
+  return `Engraving ${how} ${parts.join(' and ')}.`;
+}
+
 export class UI {
   constructor() {
     const root = document.getElementById('ui');
@@ -10,8 +26,10 @@ export class UI {
       <div id="region"><div class="rname"></div><div class="rsub"></div></div>
       <div id="prompt"></div>
       <div id="toast"></div>
-      <div id="drink"><div class="dname"></div><div class="dhint"><span class="key">E</span> sip · <span class="key">G</span> set down</div></div>
+      <div id="drink"><div class="dname"></div><div class="dhint"></div></div>
       <div id="mute">MUTED</div>
+      <div id="stick"></div>
+      <div id="tbtns"><button data-k="KeyE" aria-label="Interact">E</button><button data-k="KeyG" aria-label="Set down">G</button><button data-k="KeyN" aria-label="Dusk or night">&#9790;</button><button data-k="KeyM" aria-label="Mute">&#9835;</button></div>
       <div id="dim"></div>
       <div id="card"></div>
       <div id="err"></div>
@@ -32,8 +50,9 @@ export class UI {
           <span><b>Set down / night / music</b></span><span><span class="key">G</span> · <span class="key">N</span> · <span class="key">M</span></span>
           <span><b>Performance mode</b></span><span><span class="key">Q</span> (auto-engages if needed)</span>
           <span><b>Free the cursor</b></span><span><span class="key">Esc</span></span>
+          <span class="tonly"><b>On a touchscreen</b></span><span class="tonly">left thumb walks · right thumb looks · <span class="key">E</span> button to interact</span>
         </div>
-        <div class="note">Twenty-one real petroglyphs, redrawn by hand at (or near) true scale — six regions of the world, plus two stones the curator met in person. Each has its site, culture and sources on the lectern beside it. There is a fire, and there are refreshments. Headphones recommended.</div>
+        <div class="note">Twenty-one real petroglyphs, carved from their own photographs at (or near) true scale — six regions of the world, plus two stones the curator met in person. Each has its site, culture and sources on the lectern beside it. There is a fire, and there are refreshments. Headphones recommended.</div>
         <button id="enter">E N T E R &nbsp; T H E &nbsp; F I E L D</button>
       </div>`;
     this.el = {};
@@ -44,10 +63,28 @@ export class UI {
     this.overlayOpen = false;
   }
 
+  // on-screen buttons for touch devices: they synthesise the same key
+  // presses the keyboard would, so every handler stays in one place
+  touchButtons() {
+    const coarse = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+    if (!coarse) return;
+    document.body.classList.add('touch');
+    for (const b of document.querySelectorAll('#tbtns button')) {
+      const fire = (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: b.dataset.k, key: b.dataset.k.slice(3).toLowerCase() }));
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: b.dataset.k, key: b.dataset.k.slice(3).toLowerCase() }));
+      };
+      b.addEventListener('touchstart', fire, { passive: false });
+      b.addEventListener('click', fire);
+    }
+  }
+
   intro(onEnter) {
     document.getElementById('enter').addEventListener('click', () => {
       this.el.intro.classList.add('gone');
       this.el.crosshair.style.display = 'block';
+      this.touchButtons();
       setTimeout(() => (this.el.intro.style.display = 'none'), 1400);
       onEnter();
     });
@@ -81,7 +118,7 @@ export class UI {
     this._regionTimer = setTimeout(() => this.el.region.classList.remove('on'), 3400);
   }
 
-  showCard({ kicker, title, titlesub, meta = [], body, source, link, img, hint }) {
+  showCard({ kicker, title, titlesub, meta = [], body, source, link, img, hint, credit }) {
     const paras = (body || '').split('\n\n').map((p) => `<p>${p}</p>`).join('');
     const metaHtml = meta.length
       ? `<dl class="meta">${meta.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
@@ -100,6 +137,7 @@ export class UI {
       ${metaHtml}
       <div class="body">${paras}</div>
       ${source ? `<div class="src">Source: ${source}${linkHtml}</div>` : ''}
+      ${credit ? `<div class="src credit">${credit}</div>` : ''}
       <div class="hint">${hint || (link ? 'E — CLOSE · SOURCE LINK OPENS IN A NEW TAB' : 'E — CLOSE')}</div>`;
     this.el.card.classList.add('on');
     this.el.dim.classList.add('on');
@@ -121,6 +159,7 @@ export class UI {
       body: def.desc,
       source: def.source,
       link: def.link,
+      credit: glyphCreditHtml(def),
     });
   }
 
@@ -130,10 +169,12 @@ export class UI {
     this.overlayOpen = false;
   }
 
-  setDrink(v) {
-    if (!v) this.el.drink.style.display = 'none';
+  // the little "in your hand" chip, bottom left
+  setHeld(name, hintHtml = '') {
+    if (!name) this.el.drink.style.display = 'none';
     else {
-      this.el.drink.querySelector('.dname').textContent = `${v.name} — ${v.drink}`;
+      this.el.drink.querySelector('.dname').textContent = name;
+      this.el.drink.querySelector('.dhint').innerHTML = hintHtml;
       this.el.drink.style.display = 'block';
     }
   }

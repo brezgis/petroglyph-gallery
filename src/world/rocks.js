@@ -52,15 +52,43 @@ function displaceBox(geo, bw, bh, bd, seed, amp, flatFn) {
   geo.computeVertexNormals();
 }
 
+// Soft light shaft: the old flat additive cone showed hard triangular
+// edges. This one fades toward its silhouette (grazing view angle), toward
+// the far end, and right at the lamp, so it reads as lit dust, not glass.
+export function beamMaterial(len, color = 0xffc07a) {
+  return new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uColor: { value: new THREE.Color(color) }, uOpacity: { value: 0.06 }, uLen: { value: len } },
+    vertexShader: `
+      uniform float uLen;
+      varying float vT; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vT = 0.5 - position.y / uLen;               // 0 at the lamp, 1 at the face
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vN = normalize(normalMatrix * normal);
+        vV = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor; uniform float uOpacity;
+      varying float vT; varying vec3 vN; varying vec3 vV;
+      void main(){
+        float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.6);
+        float along = smoothstep(0.0, 0.12, vT) * pow(1.0 - vT, 0.7);
+        gl_FragColor = vec4(uColor, uOpacity * edge * along);
+      }`,
+  });
+}
+
 function buildSconce(parent, opts) {
-  const { hood, target, span, big = false } = opts;
+  const { hood, target, span, big = false, gain = 1 } = opts;
   const H = new THREE.Vector3(...hood), T = new THREE.Vector3(...target);
   const beam = T.clone().sub(H);
   const dist = beam.length();
   beam.normalize();
 
   // arm from the rock crown to the hood
-  const anchor = new THREE.Vector3(H.x, H.y - 0.18, H.z - 0.78);
+  const anchor = opts.anchor ? new THREE.Vector3(...opts.anchor) : new THREE.Vector3(H.x, H.y - 0.18, H.z - 0.78);
   const armVec = H.clone().sub(anchor);
   const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, armVec.length() + 0.1, 8), bronzeMat);
   arm.position.copy(anchor).addScaledVector(armVec, 0.5);
@@ -76,16 +104,13 @@ function buildSconce(parent, opts) {
   bulb.position.copy(H).addScaledVector(beam, 0.1);
   parent.add(bulb);
 
-  const spot = new THREE.SpotLight(0xffc07a, 0, dist * 3.2, Math.atan((span * 0.62) / dist), 0.72, 1.9);
+  const spot = new THREE.SpotLight(0xffc07a, 0, dist * 3.2, Math.atan((span * 0.7) / dist), 0.6, 1.9);
   spot.position.copy(H);
   spot.target.position.copy(T);
   parent.add(spot, spot.target);
 
-  const coneGeo = new THREE.ConeGeometry(span * 0.5, dist, 20, 1, true);
-  const coneMat = new THREE.MeshBasicMaterial({
-    color: 0xffc07a, transparent: true, opacity: 0.02,
-    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false,
-  });
+  const coneGeo = new THREE.ConeGeometry(span * 0.5, dist, 28, 8, true);
+  const coneMat = beamMaterial(dist);
   const cone = new THREE.Mesh(coneGeo, coneMat);
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), beam.clone().negate());
   cone.position.copy(H).addScaledVector(beam, dist / 2);
@@ -122,7 +147,10 @@ function buildSconce(parent, opts) {
   farGlow.scale.set(span * 1.15, span * 0.95, 1);
   parent.add(farGlow);
 
-  const baseIntensity = clamp(26 + span * span * 4.5, 30, 120);
+  // aim for a consistent ~3.4 lux-ish pool on every face regardless of how far
+  // the hood sits from it (decay 1.9) — brighter than this and ACES flattens
+  // the pale pecking and the dark varnish into the same orange glare
+  const baseIntensity = 4.2 * gain * Math.pow(dist, 1.9);
   return {
     spot, cone, dust,
     update(time, night, doDust = true, d2 = 0) {
@@ -130,7 +158,7 @@ function buildSconce(parent, opts) {
       farGlow.material.opacity = clamp((d - 22) / 20, 0, 1) * (0.2 + 0.33 * night);
       const flick = 1 + Math.sin(time * 11 + H.x * 7) * 0.03 + Math.sin(time * 27 + H.z * 13) * 0.02;
       if (spot.visible) spot.intensity = baseIntensity * (0.8 + 0.55 * night) * flick;
-      coneMat.opacity = 0.018 + 0.038 * night;
+      coneMat.uniforms.uOpacity.value = 0.05 + 0.09 * night;
       if (dust.visible !== doDust) dust.visible = doDust;   // far dust: neither drawn nor updated
       if (!doDust) return;
       const arr = dustGeo.attributes.position.array;
@@ -199,8 +227,7 @@ function buildPhotoLectern(def) {
       map: tex, roughness: 0.7, metalness: 0,
       emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12,
     }));
-  photo.rotation.x = -Math.PI / 2;
-  photo.rotation.z = Math.PI / 2;
+  photo.rotation.x = -Math.PI / 2;   // portrait print: top edge away from the reader
   photo.position.y = 0.015;
   top.add(photo);
   group.add(top);
@@ -272,7 +299,7 @@ export function buildGallery(world) {
         pole.castShadow = true;
         G.add(pole);
         sconces.push(buildSconce(G, {
-          hood: [px + 0.5, 2.55, 0], target: [0, bh * 0.6, 0], span: Math.max(bw, bd) * 0.95,
+          hood: [px + 0.5, 2.55, 0], target: [0, bh * 0.6, 0], span: Math.max(bw, bd) * 0.95, gain: 0.55,
         }));
 
         const lect = buildLectern(def);
@@ -281,6 +308,7 @@ export function buildGallery(world) {
         G.add(lect);
         for (const h of lect.userData.hit) h.userData.interact = { type: 'panel', def, id };
 
+        state.panelViews[id] = { x: bx, z: bz, y: gy + bh, yaw, dais: true, size: Math.max(bw, bd), tex };
         state.colliders.push({ x: bx, z: bz, r: Math.max(bw, bd) / 2 + 0.4 });
         const lw = new THREE.Vector3(bw / 2 * 0.5 + 0.4, 0, bd / 2 + 1.35).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
         state.colliders.push({ x: bx + lw.x, z: bz + lw.z, r: 0.42 });
@@ -314,8 +342,11 @@ export function buildGallery(world) {
 
       const topY = pcy + ph / 2;
       const sconce = buildSconce(mesh, {
-        hood: [0, topY + 0.4, bd / 2 + 0.5],
-        target: [0, pcy - ph * 0.24, bd / 2 + 0.05],
+        // hood stands out from the face in proportion to the panel so the
+        // pool covers it top to bottom (a grazing beam lit only the top third)
+        hood: [0, topY + 0.4, bd / 2 + 0.5 + ph * 0.28],
+        target: [0, pcy - ph * 0.12, bd / 2 + 0.05],
+        anchor: [0, Math.min(topY + 0.22, bh / 2 - 0.12), bd / 2 - 0.35],
         span: Math.max(pw, ph) * 1.05,
         big: def.bw > 5,
       });
@@ -328,6 +359,8 @@ export function buildGallery(world) {
       G.add(lect);
       for (const h of lect.userData.hit) h.userData.interact = { type: 'panel', def, id };
 
+      // where the panel face sits in the world (used by ?panel= screenshots)
+      state.panelViews[id] = { x: bx, z: bz, y: gy + bh / 2 - 0.35 + pcy, yaw, front: bd / 2, size: Math.max(pw, ph), tex };
       state.colliders.push({ x: bx, z: bz, r: Math.max(bw, bd) / 2 + 0.55 });
       const lw = new THREE.Vector3(lxo, 0, bd / 2 + 1.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
       state.colliders.push({ x: bx + lw.x, z: bz + lw.z, r: 0.42 });

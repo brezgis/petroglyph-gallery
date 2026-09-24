@@ -19,6 +19,9 @@ import { UI } from './ui.js';
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.has('cam');
+// ?cam=…&live=1: screenshot mode but with the walker + interactions running,
+// so scripted key presses can exercise pick-up / sip / eat
+const LIVE = SHOT && params.has('live');
 
 const ui = new UI();
 window.addEventListener('error', (e) => ui.error(String(e.message || e)));
@@ -30,7 +33,7 @@ renderer.setPixelRatio(BASE_CAP);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is deprecated (and was silently downgraded)
 renderer.shadowMap.autoUpdate = false;    // the scene is static — bake on demand
 renderer.domElement.className = 'gl';
 document.body.appendChild(renderer.domElement);
@@ -47,6 +50,7 @@ const state = {
   held: null,
   colliders: [],
   interactables: [],
+  panelViews: {},
 };
 const world = { scene, renderer, camera, state };
 
@@ -64,12 +68,35 @@ const interact = setupInteract(world, player, ui, audio);
 const courts = REGIONS.map((r) => ({ ...regionCenter(r), name: r.name, sub: r.sub, shown: false }));
 
 if (SHOT) {
+  window.__dbg = { camera, state, scene, player };   // screenshot/debug hook (SHOT mode only)
+  if (LIVE) player.entered = true;
   ui.hideIntro();
   let [cx, cy, cz, cyaw, cpitch] = (params.get('cam') || '0,3,-20,180,0').split(',').map(Number);
   if (![cx, cy, cz].every(Number.isFinite)) { cx = 0; cy = 3; cz = -20; cyaw = 180; cpitch = 0; }
   camera.position.set(cx, cy, cz);
   camera.rotation.order = 'YXZ';
   camera.rotation.set((cpitch || 0) * Math.PI / 180, (cyaw || 0) * Math.PI / 180, 0);
+  // ?panel=<id>[&dist=m] frames one stone square-on (for screenshots/checks)
+  const pv = state.panelViews[params.get('panel')];
+  // ?tex=1 additionally overlays the raw colour + normal textures (debug)
+  if (pv && params.get('tex')) {
+    for (const [i, t] of [pv.tex.map, pv.tex.normalMap].entries()) {
+      const c = t.image;
+      c.style.cssText = `position:fixed;z-index:50;top:0;left:${i * 50}vw;width:50vw;height:auto;background:#000`;
+      document.body.appendChild(c);
+    }
+  }
+  if (pv) {
+    const vfov = camera.fov * Math.PI / 180;
+    const d = parseFloat(params.get('dist')) || (pv.size * 0.62) / Math.tan(vfov / 2) + (pv.front || 0);
+    if (pv.dais) {
+      camera.position.set(pv.x + Math.sin(pv.yaw) * d * 0.35, pv.y + d * 0.95, pv.z + Math.cos(pv.yaw) * d * 0.35);
+      camera.rotation.set(-1.22, pv.yaw, 0);
+    } else {
+      camera.position.set(pv.x + Math.sin(pv.yaw) * d, pv.y, pv.z + Math.cos(pv.yaw) * d);
+      camera.rotation.set(0, pv.yaw, 0);
+    }
+  }
   const label = params.get('label');
   if (label === 'about') ui.showCard(ABOUT);
   else if (label && PANELS[label]) ui.showPanel(PANELS[label], '');
@@ -129,19 +156,21 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();   // THREE.Clock is deprecated
+timer.connect?.(document);          // pauses cleanly when the tab is hidden
 let time = 0;
 let frameN = 0;
 let shotFrames = 0;
 
 renderer.setAnimationLoop(() => {
-  const dt = clamp(clock.getDelta(), 0, 0.05);
+  timer.update();
+  const dt = clamp(timer.getDelta(), 0, 0.05);
   time += dt;
   frameN++;
   emaDt += (dt - emaDt) * 0.05;
   state.night = lerp(state.night, state.nightTarget, 1 - Math.exp(-1.2 * dt));
 
-  if (!SHOT) {
+  if (!SHOT || LIVE) {
     player.update(dt);
     interact.update(dt);
     audio.update(dt, player.pos.x, player.pos.z, state.night);

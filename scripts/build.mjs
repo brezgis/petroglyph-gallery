@@ -34,7 +34,7 @@ body{font-family:Georgia,'DejaVu Serif','Times New Roman',serif;color:#efe3cc;-w
 canvas.gl{position:fixed;inset:0;display:block}
 #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
 .key{display:inline-block;border:1px solid rgba(239,227,204,.42);border-bottom-width:2px;border-radius:4px;padding:0 7px;margin:0 2px;font:600 11px/18px 'DejaVu Sans',system-ui,sans-serif;letter-spacing:.03em;color:#f4ecd9;background:rgba(255,255,255,.06);vertical-align:1px}
-#intro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(120% 90% at 50% 18%,#241c3a 0%,#151024 45%,#0a0812 100%);pointer-events:auto;transition:opacity 1.2s ease;text-align:center;padding:24px;z-index:5}
+#intro{position:absolute;inset:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(120% 90% at 50% 18%,#241c3a 0%,#151024 45%,#0a0812 100%);pointer-events:auto;transition:opacity 1.2s ease;text-align:center;padding:24px;z-index:5}
 #intro.gone{opacity:0;pointer-events:none}
 #intro h1{font-size:clamp(32px,6vw,58px);font-weight:400;letter-spacing:.42em;text-indent:.42em;color:#efe3cc;text-shadow:0 0 38px rgba(255,190,120,.28)}
 #intro .sub{font-style:italic;color:#b7a98c;font-size:16px;letter-spacing:.08em}
@@ -78,9 +78,21 @@ canvas.gl{position:fixed;inset:0;display:block}
 #card .body{font-size:15px;line-height:1.66}
 #card .body p+p{margin-top:9px}
 #card .src{margin-top:13px;padding-top:9px;border-top:1px dashed #b49a72;font-style:italic;font-size:12px;color:#6b5c42}
+#card .src.credit{margin-top:6px;padding-top:0;border-top:0;font-size:11px;color:#7d6b50}
 #card .hint{margin-top:11px;text-align:center;font-size:11px;letter-spacing:.18em;color:#8a7454}
 #err{position:absolute;top:0;left:0;right:0;background:#5c1010;color:#ffd9d9;font:12px/1.5 monospace;padding:10px 14px;display:none;white-space:pre-wrap;z-index:99;pointer-events:auto}
-@media (max-width:700px){#intro h1{letter-spacing:.2em;text-indent:.2em}#card{padding:24px 22px 18px}}
+#stick{position:absolute;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;border:1px solid rgba(239,227,204,.35);background:rgba(18,14,26,.25);opacity:0;transition:opacity .2s;pointer-events:none;--kx:0px;--ky:0px}
+#stick::after{content:'';position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px;border-radius:50%;background:rgba(239,227,204,.45);transform:translate(var(--kx),var(--ky))}
+#stick.on{opacity:1}
+#tbtns{position:absolute;right:18px;bottom:22px;display:none;gap:10px;flex-direction:column;align-items:flex-end;pointer-events:auto}
+#tbtns button{width:58px;height:58px;border-radius:50%;border:1px solid rgba(239,227,204,.45);background:rgba(18,14,26,.55);color:#efe3cc;font:600 18px/1 'DejaVu Sans',system-ui,sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#tbtns button:first-child{width:72px;height:72px;font-size:22px;background:rgba(120,70,30,.6)}
+body.touch #tbtns{display:flex}
+body.touch #drink{bottom:auto;top:18px;left:18px}
+.tonly{display:none}
+@media (pointer:coarse){.tonly{display:inline}}
+canvas.gl{touch-action:none}
+@media (max-width:700px){#enter{letter-spacing:.16em;text-indent:.16em;padding:14px 18px}#intro .controls{grid-template-columns:1fr;gap:3px;text-align:center}#intro .note{display:none}#prompt{white-space:normal;max-width:88vw;text-align:center;bottom:18%}#region .rname{font-size:18px;letter-spacing:.3em}#toast{max-width:88vw;font-size:14px}#intro h1{letter-spacing:.2em;text-indent:.2em}#card{padding:24px 22px 18px}}
 `;
 
 const BODY = `<div id="ui"></div>`;

@@ -1,0 +1,1316 @@
+{
+ "_doc": "Per-panel glyph sources for scripts/glyphs/fetch.py + extract.py. crop/include/exclude are fractions; place is metres on the panel face (centre x,y; width w or height h). See README 'Glyph pipeline'.",
+ "panels": {
+  "great-hunt": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Day 5- The Great Hunt Panel (20182545315).jpg",
+     "crop": [
+      0.04,
+      0.07,
+      0.96,
+      0.95
+     ],
+     "mode": "chroma",
+     "bg": 0.25,
+     "k": 0.45,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 3.3
+     },
+     "exclude": [
+      [
+       [
+        0.7,
+        0
+       ],
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        0.3
+       ],
+       [
+        0.9,
+        0.2
+       ],
+       [
+        0.8,
+        0.08
+       ],
+       [
+        0.7,
+        0.04
+       ]
+      ],
+      [
+       [
+        0,
+        0.4
+       ],
+       [
+        0.1,
+        0.42
+       ],
+       [
+        0.1,
+        0.7
+       ],
+       [
+        0.06,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ],
+      [
+       [
+        0,
+        0.8
+       ],
+       [
+        0.25,
+        0.84
+       ],
+       [
+        0.46,
+        0.86
+       ],
+       [
+        0.47,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ]
+     ],
+     "min_area": 0.0003,
+     "satw": 1.2,
+     "open": 2,
+     "close": 2
+    }
+   ]
+  },
+  "three-rivers": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Three Rivers desert bighorn.jpg",
+     "crop": [
+      0.13,
+      0.1,
+      0.85,
+      0.9
+     ],
+     "mode": "dark",
+     "bg": 0.2,
+     "k": 0.3,
+     "close": 3,
+     "place": {
+      "x": 0,
+      "y": -0.42,
+      "w": 1.2
+     }
+    },
+    {
+     "file": "File:Three Rivers Petroglyphs IMG 20220308 123959.jpg",
+     "crop": [
+      0.22,
+      0.26,
+      0.62,
+      0.73
+     ],
+     "mode": "light",
+     "bg": 0.08,
+     "k": 0.75,
+     "place": {
+      "x": 0,
+      "y": 0.5,
+      "w": 0.62
+     },
+     "open": 1,
+     "min_area": 0.0008,
+     "close": 4,
+     "denoise": 2.5,
+     "exclude": [
+      [
+       [
+        0.93,
+        0.88
+       ],
+       [
+        1,
+        0.88
+       ],
+       [
+        1,
+        1
+       ],
+       [
+        0.93,
+        1
+       ]
+      ],
+      [
+       [
+        0,
+        0
+       ],
+       [
+        0.2,
+        0
+       ],
+       [
+        0.12,
+        0.12
+       ],
+       [
+        0,
+        0.12
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  "tanum": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Tanum Vitlycke unesco IMG 4754 ships.jpg",
+     "crop": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+     ],
+     "mode": "red",
+     "bg": 0.15,
+     "k": 1.0,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 2.6
+     }
+    }
+   ]
+  },
+  "alta": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:AltaRockCarvingsFences.jpg",
+     "crop": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+     ],
+     "mode": "red",
+     "bg": 0.15,
+     "k": 1.0,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 2.5
+     },
+     "min_area": 0.0004
+    }
+   ]
+  },
+  "fajada": {
+   "status": "approximated",
+   "layers": [
+    {
+     "file": "File:Fajadadiagram.JPG",
+     "crop": [
+      0.07,
+      0.065,
+      0.84,
+      0.31
+     ],
+     "mode": "dark",
+     "bg": 0.12,
+     "k": 0.8,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 0.8
+     },
+     "inpaint": 90
+    }
+   ]
+  },
+  "dabous": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Giraffen von Dabous.jpg",
+     "quad": [
+      [
+       0.25,
+       0.19
+      ],
+      [
+       0.64,
+       0.24
+      ],
+      [
+       0.75,
+       0.93
+      ],
+      [
+       0.27,
+       0.93
+      ]
+     ],
+     "quad_aspect": 0.72,
+     "mode": "ridge",
+     "bg": 0.04,
+     "k": 0.6,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 5.8
+     },
+     "black": false,
+     "pct": 16,
+     "open": 0,
+     "close": 1,
+     "min_area": 0.0004,
+     "sigmas": [
+      1.2,
+      2.0,
+      3.0
+     ],
+     "include": [
+      [
+       [
+        0.05,
+        0.03
+       ],
+       [
+        0.22,
+        0.02
+       ],
+       [
+        0.45,
+        0.2
+       ],
+       [
+        0.62,
+        0.22
+       ],
+       [
+        0.9,
+        0.3
+       ],
+       [
+        0.93,
+        0.75
+       ],
+       [
+        0.7,
+        0.97
+       ],
+       [
+        0.25,
+        0.99
+       ],
+       [
+        0.02,
+        0.75
+       ],
+       [
+        0.04,
+        0.3
+       ]
+      ]
+     ],
+     "exclude": [
+      [
+       [
+        0.6,
+        0.28
+       ],
+       [
+        0.85,
+        0.28
+       ],
+       [
+        0.85,
+        0.36
+       ],
+       [
+        0.6,
+        0.36
+       ]
+      ],
+      [
+       [
+        0.66,
+        0.3
+       ],
+       [
+        1,
+        0.3
+       ],
+       [
+        1,
+        1
+       ],
+       [
+        0.7,
+        1
+       ],
+       [
+        0.66,
+        0.6
+       ]
+      ]
+     ]
+    },
+    {
+     "file": "File:Giraffen von Dabous.jpg",
+     "quad": [
+      [
+       0.25,
+       0.19
+      ],
+      [
+       0.64,
+       0.24
+      ],
+      [
+       0.75,
+       0.93
+      ],
+      [
+       0.27,
+       0.93
+      ]
+     ],
+     "quad_aspect": 0.72,
+     "mode": "ridge",
+     "bg": 0.04,
+     "k": 0.6,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 5.8
+     },
+     "black": false,
+     "pct": 22,
+     "open": 0,
+     "close": 1,
+     "min_area": 0.0004,
+     "sigmas": [
+      1.0,
+      1.8,
+      2.6
+     ],
+     "include": [
+      [
+       [
+        0.66,
+        0.26
+       ],
+       [
+        0.97,
+        0.26
+       ],
+       [
+        0.97,
+        0.8
+       ],
+       [
+        0.7,
+        0.8
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  "sydney-emu": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Emu in the Sky with a tracing of the Rock Engraving superimposed.tif",
+     "crop": [
+      0.06,
+      0.79,
+      0.93,
+      0.97
+     ],
+     "mode": "color",
+     "rgb": [
+      20,
+      175,
+      230
+     ],
+     "tol": 110,
+     "close": 1,
+     "open": 0,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 3.3
+     }
+    }
+   ]
+  },
+  "twyfelfontein": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Twyfelfontein-Gravure rupestre-Girafe et lion.jpg",
+     "crop": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+     ],
+     "mode": "chroma",
+     "satw": 1.0,
+     "bg": 0.2,
+     "k": 0.55,
+     "open": 2,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 2.2
+     },
+     "exclude": [
+      [
+       [
+        0,
+        0
+       ],
+       [
+        0.1,
+        0
+       ],
+       [
+        0.12,
+        0.6
+       ],
+       [
+        0.05,
+        0.9
+       ],
+       [
+        0,
+        0.9
+       ]
+      ],
+      [
+       [
+        0,
+        0.9
+       ],
+       [
+        1,
+        0.9
+       ],
+       [
+        1,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  "sand-island": {
+   "status": "approximated",
+   "layers": [
+    {
+     "file": "File:Sand Island Petroglyphs - panoramio.jpg",
+     "crop": [
+      0.36,
+      0.26,
+      0.74,
+      0.58
+     ],
+     "mode": "chroma",
+     "satw": 1.3,
+     "bg": 0.08,
+     "k": 0.95,
+     "open": 1,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 2.5
+     },
+     "min_area": 0.0004,
+     "exclude": [
+      [
+       [
+        0,
+        0
+       ],
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        0.1
+       ],
+       [
+        0,
+        0.1
+       ]
+      ],
+      [
+       [
+        0.93,
+        0
+       ],
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        1
+       ],
+       [
+        0.93,
+        1
+       ]
+      ],
+      [
+       [
+        0,
+        0.4
+       ],
+       [
+        0.06,
+        0.4
+       ],
+       [
+        0.06,
+        0.65
+       ],
+       [
+        0,
+        0.65
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  "toro-muerto": {
+   "status": "approximated",
+   "layers": [
+    {
+     "file": "File:Toro Muerto Petroglyphs, Peru (1972) (457747624).jpg",
+     "crop": [
+      0.08,
+      0.2,
+      0.92,
+      0.8
+     ],
+     "mode": "light",
+     "bg": 0.06,
+     "k": 0.9,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 2.0
+     },
+     "include": [
+      [
+       [
+        0.0,
+        0.28
+       ],
+       [
+        0.3,
+        0.1
+       ],
+       [
+        0.5,
+        0.0
+       ],
+       [
+        0.72,
+        0.08
+       ],
+       [
+        0.9,
+        0.35
+       ],
+       [
+        0.97,
+        0.6
+       ],
+       [
+        0.95,
+        1.0
+       ],
+       [
+        0.45,
+        1.0
+       ],
+       [
+        0.3,
+        0.75
+       ],
+       [
+        0.0,
+        0.62
+       ]
+      ]
+     ],
+     "exclude": [
+      [
+       [
+        0.38,
+        0.43
+       ],
+       [
+        0.62,
+        0.5
+       ],
+       [
+        0.62,
+        0.66
+       ],
+       [
+        0.4,
+        0.6
+       ]
+      ]
+     ],
+     "min_area": 0.0003
+    }
+   ]
+  },
+  "atacama-llamas": {
+   "status": "approximated",
+   "layers": [
+    {
+     "file": "File:Yerbas Buenas 3.jpg",
+     "crop": [
+      0.2,
+      0.08,
+      0.8,
+      0.74
+     ],
+     "trace": [
+      [
+       [
+        0.133,
+        0.061
+       ],
+       [
+        0.175,
+        0.121
+       ],
+       [
+        0.192,
+        0.152
+       ],
+       [
+        0.308,
+        0.307
+       ],
+       [
+        0.842,
+        0.307
+       ],
+       [
+        0.875,
+        0.364
+       ],
+       [
+        0.833,
+        0.424
+       ],
+       [
+        0.783,
+        0.606
+       ],
+       [
+        0.8,
+        0.848
+       ],
+       [
+        0.75,
+        0.848
+       ],
+       [
+        0.717,
+        0.606
+       ],
+       [
+        0.683,
+        0.582
+       ],
+       [
+        0.458,
+        0.59
+       ],
+       [
+        0.433,
+        0.606
+       ],
+       [
+        0.408,
+        0.848
+       ],
+       [
+        0.358,
+        0.848
+       ],
+       [
+        0.342,
+        0.606
+       ],
+       [
+        0.267,
+        0.485
+       ],
+       [
+        0.167,
+        0.222
+       ],
+       [
+        0.1,
+        0.212
+       ],
+       [
+        0.067,
+        0.192
+       ],
+       [
+        0.1,
+        0.141
+       ],
+       [
+        0.133,
+        0.061
+       ]
+      ],
+      [
+       [
+        0.46,
+        0.585
+       ],
+       [
+        0.55,
+        0.61
+       ],
+       [
+        0.65,
+        0.6
+       ],
+       [
+        0.69,
+        0.57
+       ]
+      ]
+     ],
+     "trace_w": 0.022,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 1.25
+     }
+    }
+   ]
+  },
+  "valcamonica": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Rosa camuna (Foppe).svg",
+     "mode": "dark",
+     "bg": 0.3,
+     "k": 0.0,
+     "open": 0,
+     "close": 0,
+     "place": {
+      "x": -0.35,
+      "y": 0.35,
+      "w": 0.8
+     }
+    },
+    {
+     "file": "File:Rosa camuna e antropomorfi R24 - Foppe - Nadro.jpg",
+     "crop": [
+      0.0,
+      0.47,
+      0.8,
+      1.0
+     ],
+     "mode": "dark",
+     "bg": 0.08,
+     "k": 0.75,
+     "denoise": 2.5,
+     "close": 3,
+     "min_area": 0.0015,
+     "include": [
+      [
+       [
+        0.05,
+        0.05
+       ],
+       [
+        0.5,
+        0.0
+       ],
+       [
+        0.95,
+        0.15
+       ],
+       [
+        0.9,
+        0.4
+       ],
+       [
+        0.65,
+        0.6
+       ],
+       [
+        0.62,
+        1.0
+       ],
+       [
+        0.3,
+        1.0
+       ],
+       [
+        0.05,
+        0.5
+       ]
+      ]
+     ],
+     "place": {
+      "x": 0.45,
+      "y": -0.3,
+      "h": 1.0
+     }
+    }
+   ]
+  },
+  "tamgaly": {
+   "status": "approximated",
+   "layers": [
+    {
+     "file": "File:Bronze age conception of the world with sun gods, animals and dancing humans at Tangaly, Kazakhstan.jpg",
+     "crop": [
+      0.15,
+      0.08,
+      0.72,
+      0.92
+     ],
+     "mode": "chroma",
+     "satw": 0.6,
+     "bg": 0.05,
+     "k": 1.0,
+     "denoise": 2,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 1.8
+     },
+     "min_area": 0.0004,
+     "exclude": [
+      [
+       [
+        0,
+        0
+       ],
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        0.07
+       ],
+       [
+        0,
+        0.07
+       ]
+      ],
+      [
+       [
+        0.12,
+        0.1
+       ],
+       [
+        0.5,
+        0.2
+       ],
+       [
+        0.45,
+        0.27
+       ],
+       [
+        0.1,
+        0.16
+       ]
+      ],
+      [
+       [
+        0.6,
+        0
+       ],
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        0.22
+       ],
+       [
+        0.8,
+        0.2
+       ]
+      ],
+      [
+       [
+        0,
+        0
+       ],
+       [
+        0.04,
+        0
+       ],
+       [
+        0.04,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  "bangudae": {
+   "status": "approximated",
+   "layers": [
+    {
+     "file": "File:Bangudae3.jpg",
+     "crop": [
+      0.07,
+      0.1,
+      0.47,
+      0.72
+     ],
+     "mode": "dark",
+     "bg": 0.18,
+     "k": 0.7,
+     "denoise": 2.0,
+     "open": 2,
+     "close": 2,
+     "min_area": 0.0006,
+     "exclude": [
+      [
+       [
+        0,
+        0.82
+       ],
+       [
+        1,
+        0.82
+       ],
+       [
+        1,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ],
+      [
+       [
+        0.78,
+        0
+       ],
+       [
+        0.9,
+        0
+       ],
+       [
+        0.92,
+        1
+       ],
+       [
+        0.8,
+        1
+       ]
+      ],
+      [
+       [
+        0,
+        0.5
+       ],
+       [
+        0.04,
+        0.5
+       ],
+       [
+        0.04,
+        0.82
+       ],
+       [
+        0,
+        0.82
+       ]
+      ]
+     ],
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 2.3
+     }
+    }
+   ]
+  },
+  "orongo": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Oc,G.T.1482, Mana Expedition to Easter Island, British Museum.jpg",
+     "crop": [
+      0.04,
+      0.14,
+      0.97,
+      0.95
+     ],
+     "mode": "dark",
+     "bg": 0.15,
+     "k": 1.0,
+     "close": 2,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 1.4
+     }
+    }
+   ]
+  },
+  "gobustan": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "File:Gobustan rock paintings - a boat.jpg",
+     "crop": [
+      0.04,
+      0.3,
+      0.97,
+      0.72
+     ],
+     "mode": "light",
+     "bg": 0.05,
+     "k": 1.1,
+     "denoise": 2,
+     "place": {
+      "x": 0,
+      "y": 0.05,
+      "w": 2.4
+     },
+     "min_area": 0.0006,
+     "include": [
+      [
+       [
+        0,
+        0.55
+       ],
+       [
+        0.8,
+        0.45
+       ],
+       [
+        0.85,
+        0.0
+       ],
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        1
+       ],
+       [
+        0,
+        1
+       ]
+      ]
+     ]
+    }
+   ]
+  },
+  "wp-herd": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "reference/petroglyph photos/IMG_2278.jpg",
+     "crop": [
+      0.36,
+      0.43,
+      0.66,
+      0.68
+     ],
+     "mode": "light",
+     "bg": 0.05,
+     "k": 1.05,
+     "denoise": 1.8,
+     "min_area": 0.001,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "w": 2.1
+     }
+    }
+   ]
+  },
+  "wp-maze": {
+   "status": "good",
+   "layers": [
+    {
+     "file": "reference/petroglyph photos/IMG_2350.jpg",
+     "crop": [
+      0.02,
+      0.1,
+      0.99,
+      0.97
+     ],
+     "mode": "chroma",
+     "satw": 0.8,
+     "bg": 0.04,
+     "k": 0.9,
+     "denoise": 1.5,
+     "min_area": 0.0003,
+     "place": {
+      "x": 0,
+      "y": 0,
+      "h": 1.95
+     },
+     "exclude": [
+      [
+       [
+        0,
+        0
+       ],
+       [
+        0.11,
+        0
+       ],
+       [
+        0.11,
+        0.62
+       ],
+       [
+        0,
+        0.62
+       ]
+      ],
+      [
+       [
+        0.3,
+        0.25
+       ],
+       [
+        0.52,
+        0.25
+       ],
+       [
+        0.52,
+        0.4
+       ],
+       [
+        0.3,
+        0.4
+       ]
+      ],
+      [
+       [
+        0,
+        0
+       ],
+       [
+        0.2,
+        0
+       ],
+       [
+        0.2,
+        0.13
+       ],
+       [
+        0.14,
+        0.25
+       ],
+       [
+        0,
+        0.25
+       ]
+      ]
+     ]
+    },
+    {
+     "file": "reference/petroglyph photos/IMG_2350.jpg",
+     "crop": [
+      0.311,
+      0.3175,
+      0.524,
+      0.448
+     ],
+     "mode": "chroma",
+     "satw": 0.8,
+     "bg": 0.08,
+     "k": 0.5,
+     "denoise": 1.0,
+     "open": 1,
+     "close": 1,
+     "min_area": 0.0003,
+     "place": {
+      "x": -0.147,
+      "y": 0.341,
+      "w": 0.347
+     }
+    }
+   ]
+  },
+  "murujuga": {
+   "status": "failed",
+   "note": "no openly licensed photo of a Murujuga thylacine engraving on Commons; hand redrawing kept",
+   "layers": []
+  },
+  "qurta": {
+   "status": "failed",
+   "note": "no openly licensed Qurta photo or tracing on Commons; hand redrawing kept",
+   "layers": []
+  },
+  "cerro-pintado": {
+   "status": "failed",
+   "note": "no openly licensed photo of the Cerro Pintado serpent on Commons; hand redrawing kept",
+   "layers": []
+  }
+ }
+}

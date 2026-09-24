@@ -23,6 +23,24 @@ export const STYLES = {
   vermilion: { base: '#6e4034', mottleA: '#7d4b3c', mottleB: '#57332c', engrave: '#e6c2a2', dark: false },
 };
 
+// Decode a run-length-encoded mask (LEB128 varints in base64; runs alternate
+// off/on starting with off). Cached per layer object.
+const maskCache = new WeakMap();
+export function decodeMask(L) {
+  if (maskCache.has(L)) return maskCache.get(L);
+  const bin = atob(L.rle);
+  const out = new Uint8Array(L.w * L.h);
+  let pos = 0, on = 0, i = 0;
+  while (i < bin.length) {
+    let v = 0, shift = 0, b;
+    do { b = bin.charCodeAt(i++); v |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80);
+    if (on) out.fill(1, pos, pos + v);
+    pos += v; on ^= 1;
+  }
+  maskCache.set(L, out);
+  return out;
+}
+
 // ---------------------------------------------------------------- glyph API
 function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
   const X = (x) => (x + wM / 2) * ppm;
@@ -330,6 +348,44 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
     }
   };
 
+  // Carve an extracted glyph mask (see scripts/glyphs/extract.py): the mask
+  // is laid down as a soft groove floor, then pecked over with jittered
+  // hammer-stone dots so it reads as worked stone rather than a stencil.
+  g.mask = (L) => {
+    const bits = decodeMask(L);
+    const px0 = X(L.x - L.wm / 2), py0 = Y(L.y + L.hm / 2);
+    const pw = L.wm * ppm, ph = L.hm * ppm;
+    // groove floor
+    const mc = document.createElement('canvas');
+    mc.width = L.w; mc.height = L.h;
+    const mctx = mc.getContext('2d');
+    const img = mctx.createImageData(L.w, L.h);
+    for (let i = 0; i < bits.length; i++) if (bits[i]) { img.data[i * 4 + 3] = 255; img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = 255; }
+    mctx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = 0.42 * (L.depth ?? 1);
+    ctx.filter = 'blur(0.6px)';
+    ctx.drawImage(mc, px0, py0, pw, ph);
+    ctx.restore();
+    // peck marks: ~one hammer strike per 2.3 px of groove
+    ctx.fillStyle = '#fff';
+    const step = 2.3, sx = L.w / pw, sy = L.h / ph;
+    const r0 = Math.max(0.8, Math.min(2.2, ppm * 0.006));
+    for (let yy = 0; yy < ph; yy += step) {
+      const my = Math.min(L.h - 1, Math.floor(yy * sy));
+      for (let xx = 0; xx < pw; xx += step) {
+        const jx = xx + (rng() - 0.5) * step * 1.3, jy = yy + (rng() - 0.5) * step * 1.3;
+        const mx = Math.min(L.w - 1, Math.max(0, Math.floor(jx * sx)));
+        const my2 = Math.min(L.h - 1, Math.max(0, Math.floor(jy * sy)));
+        if (!bits[my2 * L.w + mx] && !bits[my * L.w + mx]) continue;
+        if (rng() < 0.12) continue;                       // unstruck gaps
+        dot(px0 + jx, py0 + jy, r0 * (0.55 + rng() * 0.75), 0.35 + rng() * 0.5);
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+
   g.footprint3 = (at, size, dir = 1) => {
     for (const a of [-28, 0, 28])
       g.line([at, [at[0] + dir * Math.cos(a * DEG) * size, at[1] - Math.abs(Math.sin(a * DEG)) * size * 0.4 - size * (a === 0 ? 1 : 0.7)]], 0.02);
@@ -470,9 +526,9 @@ export function renderPanelTexture({ wM, hM, style, seed = 1, draw, glow = true,
   for (let y = 0; y < H2; y++)
     for (let x = 0; x < W2; x++)
       height[y * W2 + x] =
-        fbm2((x + seed * 37) * 0.036, y * 0.036, 3) * 4 +
-        fbm2(x * 0.14, (y + seed * 11) * 0.14, 2) * 1.3 -
-        (glyphData[(y * W2 + x) * 4 + 3] / 255) * 7;
+        fbm2((x + seed * 37) * 0.036, y * 0.036, 3) * 2.6 +
+        fbm2(x * 0.14, (y + seed * 11) * 0.14, 2) * 1.0 -
+        (glyphData[(y * W2 + x) * 4 + 3] / 255) * 4.2;
   const nImg = heightToNormal(height, W2, H2, 0.85);
   const nCanvas = makeCanvas(W2, H2);
   nCanvas.ctx.putImageData(new ImageData(nImg, W2, H2), 0, 0);

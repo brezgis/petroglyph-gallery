@@ -161,10 +161,10 @@ export function buildSky(world) {
     moon.material.opacity = 0.75 + 0.25 * night;
 
     key.color.lerpColors(keyDusk, keyNight, night);
-    key.intensity = lerp(2.0, 0.55, night);
+    key.intensity = lerp(2.0, 0.7, night);   // a touch more moonlight: night read as murky
     key.position.lerpVectors(duskPos, moonPos, night);
 
-    hemi.intensity = lerp(0.55, 0.30, night);
+    hemi.intensity = lerp(0.55, 0.38, night);
     scene.fog.color.lerpColors(fogDusk, fogNight, night);
     scene.fog.density = lerp(0.0060, 0.0078, night);
 

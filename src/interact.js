@@ -1,9 +1,11 @@
-// Center-screen raycast interaction: read plaques and cards, pick up pottery,
-// sip, set down. Also owns the E/G/N/M keys.
+// Center-screen raycast interaction: read plaques and cards, pick up pottery
+// and sip, take food from the foods table and eat it, set things down. Also
+// owns the E/G/N/M keys.
 
 import * as THREE from 'three';
 import { clamp } from './util.js';
 import { REGIONS } from './layout.js';
+import { buildBite } from './world/plaza.js';
 
 const REGION_OF = {};
 for (const r of REGIONS) for (const id of r.panels) REGION_OF[id] = r.name;
@@ -15,21 +17,40 @@ export function setupInteract(world, player, ui, audio) {
   const center = new THREE.Vector2(0, 0);
   const state = world.state;
   let current = null;
-  let sipT = -1, sipCool = 0, rayTimer = 0;
+  let sipCool = 0, rayTimer = 0;
 
   const heldGroup = new THREE.Group();
   world.camera.add(heldGroup);
-  heldGroup.position.set(0.33, -0.35, -0.62);
-  heldGroup.rotation.set(0.12, -0.25, 0.05);
+  // resting pose: low and to the right of view
+  const REST_P = new THREE.Vector3(0.33, -0.35, -0.62);
+  const REST_R = new THREE.Euler(0.12, -0.25, 0.05);
+  // at the lips: centred just under the eye, close in. A cup tips its rim
+  // TOWARD the drinker (+x rotation brings the top toward the camera); the
+  // old animation tipped it away, pouring the drink out over the table.
+  const SIP_P = new THREE.Vector3(0.0, -0.22, -0.36);
+  const SIP_R = new THREE.Euler(1.05, -0.05, 0.0);
+  const BITE_P = new THREE.Vector3(0.0, -0.13, -0.26);
+  const BITE_R = new THREE.Euler(0.35, -0.1, 0.0);
+  heldGroup.position.copy(REST_P);
+  heldGroup.rotation.copy(REST_R);
+  let actT = -1, actKind = null;
 
   function maxDistFor(it) {
     if (it.type === 'panel') return 6.0;
-    if (it.type === 'vessel') return 3.4;
+    if (it.type === 'vessel' || it.type === 'food') return 3.4;
     return 3.2;
   }
 
+  // the scene's shadow map is baked on demand; anything that leaves or
+  // returns to a table must trigger a re-bake, and nothing in your hand
+  // should cast a shadow into the world
+  const rebake = () => { world.renderer.shadowMap.needsUpdate = true; };
+  const setCast = (o, on) => o.traverse((m) => { if (m.isMesh) m.castShadow = on; });
+
   function pickup(mesh, v) {
-    state.held = { v, mesh };
+    state.held = { kind: 'vessel', v, mesh };
+    setCast(mesh, false);
+    rebake();
     mesh.userData.home.parent.remove(mesh);
     mesh.position.set(0, 0, 0);
     mesh.rotation.set(0, 0, 0);
@@ -37,37 +58,74 @@ export function setupInteract(world, player, ui, audio) {
     // a held vessel shouldn't catch the interaction ray in front of your face
     const idx = state.interactables.indexOf(mesh);
     if (idx !== -1) state.interactables.splice(idx, 1);
-    ui.setDrink(v);
+    ui.setHeld(`${v.name} — ${v.drink}`, `${K('E')} sip · ${K('G')} set down`);
     ui.toast(`${v.drink}. ${v.notes[0]}`);
     audio.uiTick();
   }
 
+  function takeFood(f) {
+    const mesh = buildBite(f);
+    heldGroup.add(mesh);
+    state.held = { kind: 'food', f, mesh, bites: 0 };
+    ui.setHeld(`${f.bite[0].toUpperCase()}${f.bite.slice(1)}`, `${K('E')} take a bite · ${K('G')} put it back`);
+    ui.toast(`You take ${f.bite}.`);
+    audio.uiTick();
+  }
+
   function setDown() {
-    const { v, mesh } = state.held;
-    heldGroup.remove(mesh);
+    const held = state.held;
+    heldGroup.remove(held.mesh);
+    state.held = null;
+    actT = -1;
+    heldGroup.position.copy(REST_P);
+    heldGroup.rotation.copy(REST_R);
+    ui.setHeld(null);
+    audio.uiTick();
+    if (held.kind === 'food') {
+      ui.toast(held.bites ? 'You set the rest aside for later.' : 'Back on the table it goes.');
+      return;
+    }
+    const { mesh } = held;
+    setCast(mesh, true);
+    rebake();
     const home = mesh.userData.home;
     home.parent.add(mesh);
     mesh.position.copy(home.pos);
     mesh.rotation.set(0, home.rot, 0);
     state.interactables.push(mesh);
-    state.held = null;
-    ui.setDrink(null);
     ui.toast('Returned to the bar. The next visitor thanks you.');
-    audio.uiTick();
   }
 
-  function sip() {
-    if (sipCool > 0 || sipT >= 0) return;
-    sipT = 0;
-    sipCool = 1.6;
-    const v = state.held.v;
-    v._noteIdx = ((v._noteIdx ?? 0) + 1) % v.notes.length;
-    setTimeout(() => {
-      if (!state.held || state.held.v !== v || ui.overlayOpen) return;   // vessel changed / reading
+  // E with something in hand: raise it to your mouth. The sip/bite lands at
+  // the top of the motion (see update), so sound and toast match the picture.
+  function consume() {
+    if (sipCool > 0 || actT >= 0) return;
+    actT = 0;
+    actKind = state.held.kind;
+    sipCool = 1.3;
+  }
+
+  function atMouth() {
+    const held = state.held;
+    if (!held || ui.overlayOpen) return;
+    if (held.kind === 'vessel') {
+      const v = held.v;
+      v._noteIdx = ((v._noteIdx ?? 0) + 1) % v.notes.length;
       audio.sip();
       ui.sipFlash();
       ui.toast(v.notes[v._noteIdx]);
-    }, 260);
+    } else {
+      const f = held.f;
+      audio.bite(f.soft);
+      ui.toast(f.notes[Math.min(held.bites, f.notes.length - 1)]);
+      held.bites++;
+      const left = 3 - held.bites;
+      if (left <= 0) {
+        held.finish = true;          // vanishes as the hand comes back down
+      } else {
+        held.mesh.scale.setScalar(0.45 + 0.55 * (left / 3));
+      }
+    }
   }
 
   let relock = false;
@@ -101,8 +159,11 @@ export function setupInteract(world, player, ui, audio) {
       } else if (it.type === 'overlay') {
         openOverlay(() => ui.showCard(it.data));
       } else if (it.type === 'vessel') {
-        if (state.held) ui.toast('Hands full — G to set the other one down.');
+        if (state.held) ui.toast('Hands full — G to set it down first.');
         else pickup(current, it.v);
+      } else if (it.type === 'food') {
+        if (state.held) ui.toast('Hands full — G to set it down first.');
+        else takeFood(it.f);
       } else if (it.type === 'bench') {
         if (player.sitting) player.stand();
         else {
@@ -113,7 +174,7 @@ export function setupInteract(world, player, ui, audio) {
       }
       return;
     }
-    if (state.held) { sip(); return; }
+    if (state.held) { consume(); return; }
     if (player.sitting) player.stand();
   }
 
@@ -141,21 +202,35 @@ export function setupInteract(world, player, ui, audio) {
 
   function update(dt) {
     sipCool = Math.max(0, sipCool - dt);
-    // sip animation: raise & tilt the held vessel
-    if (sipT >= 0) {
-      sipT += dt / 0.85;
-      const t = sipT >= 1 ? 1 : sipT;
-      const a = Math.sin(t * Math.PI);
-      heldGroup.position.set(0.33 - 0.19 * a, -0.35 + 0.24 * a, -0.62 + 0.2 * a);
-      heldGroup.rotation.set(0.12 - 0.9 * a, -0.25, 0.05);
-      if (sipT >= 1) {
-        sipT = -1;
-        heldGroup.position.set(0.33, -0.35, -0.62);
-        heldGroup.rotation.set(0.12, -0.25, 0.05);
+    // raise to the mouth, pause, lower: 0→0.4 up, 0.4→0.6 hold, 0.6→1 down
+    if (actT >= 0) {
+      const prev = actT;
+      actT += dt / 1.0;
+      if (prev < 0.42 && actT >= 0.42) atMouth();
+      const t = Math.min(actT, 1);
+      const up = t < 0.4 ? t / 0.4 : t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4;
+      const a = up * up * (3 - 2 * up);
+      const P = actKind === 'food' ? BITE_P : SIP_P, R = actKind === 'food' ? BITE_R : SIP_R;
+      heldGroup.position.lerpVectors(REST_P, P, a);
+      heldGroup.rotation.set(
+        REST_R.x + (R.x - REST_R.x) * a,
+        REST_R.y + (R.y - REST_R.y) * a,
+        REST_R.z + (R.z - REST_R.z) * a);
+      if (actT >= 1) {
+        actT = -1;
+        heldGroup.position.copy(REST_P);
+        heldGroup.rotation.copy(REST_R);
+        if (state.held && state.held.finish) {
+          const f = state.held.f;
+          heldGroup.remove(state.held.mesh);
+          state.held = null;
+          ui.setHeld(null);
+          ui.toast(`Finished. The table has more ${f.title.split(' ')[0].toLowerCase()} whenever you like.`);
+        }
       }
     } else if (state.held) {
       const b = Math.sin(player.bobPhase * Math.PI) * 0.008;
-      heldGroup.position.set(0.33, -0.35 + b, -0.62);
+      heldGroup.position.set(REST_P.x, REST_P.y + b, REST_P.z);
     }
 
     if (ui.overlayOpen || !player.entered) {
@@ -174,6 +249,9 @@ export function setupInteract(world, player, ui, audio) {
     for (const h of hits) {
       const it = h.object.userData.interact;
       if (!it) continue;
+      // with something already in hand, looking at the bar or the food table
+      // shouldn't hijack E — you meant to sip / take a bite
+      if (state.held && (it.type === 'vessel' || it.type === 'food')) break;
       if (h.distance <= maxDistFor(it)) current = h.object;
       break;
     }
@@ -183,9 +261,13 @@ export function setupInteract(world, player, ui, audio) {
       else if (it.type === 'overlay') ui.setPrompt(`${K('E')} read — <i>${it.data.title}</i>`);
       else if (it.type === 'bench') ui.setPrompt(player.sitting ? `${K('E')} stand up` : `${K('E')} sit by the fire`);
       else if (it.type === 'vessel')
-        ui.setPrompt(state.held ? `hands full — ${K('G')} set down first` : `${K('E')} take the ${it.v.name} — <i>${it.v.drink}</i>`);
+        ui.setPrompt(`${K('E')} take the ${it.v.name} — <i>${it.v.drink}</i>`);
+      else if (it.type === 'food')
+        ui.setPrompt(`${K('E')} take ${it.f.bite}`);
     } else if (state.held) {
-      ui.setPrompt(`${K('E')} take a sip · ${K('G')} set it down`);
+      ui.setPrompt(state.held.kind === 'food'
+        ? `${K('E')} take a bite · ${K('G')} put it back`
+        : `${K('E')} take a sip · ${K('G')} set it down`);
     } else {
       ui.setPrompt(null);
     }

@@ -85,23 +85,71 @@ export class AudioEngine {
   }
 
   // ---------------- ambience ----------------
+  // Pink-ish noise (Voss/Kellet filter) long enough that the loop never
+  // announces itself; the old 2 s white-noise loop gave the wind a hiss and
+  // a repeating 'whoosh'.
+  _pinkBuffer(sec) {
+    const rate = this.ctx.sampleRate, len = Math.floor(rate * sec);
+    const buf = this.ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759;
+        b2 = 0.96900 * b2 + w * 0.1538520; b3 = 0.86650 * b3 + w * 0.3104856;
+        b4 = 0.55000 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.0168980;
+        d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+        b6 = w * 0.115926;
+      }
+      // cross-fade the ends so the loop seam is inaudible
+      const fade = Math.floor(rate * 0.5);
+      for (let i = 0; i < fade; i++) {
+        const a = i / fade;
+        d[i] = d[i] * a + d[len - fade + i] * (1 - a);
+      }
+    }
+    return buf;
+  }
+
+  // Wind: a soft low body plus a faint airy layer, each with its own slow,
+  // smoothly wandering gust envelope that also opens the filter (gusts get
+  // brighter as well as louder), drifting gently across the stereo field.
   _wind() {
     const c = this.ctx;
-    const src = this._noiseSrc();
-    const lp = c.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 320; lp.Q.value = 0.4;
+    const pink = this._pinkBuffer(11.3);
     this.windGain = c.createGain();
-    this.windGain.gain.value = 0.14;
-    src.connect(lp); lp.connect(this.windGain); this.windGain.connect(this.ambBus);
-    src.start();
-    const lfo = c.createOscillator(); lfo.frequency.value = 0.05;
-    const lfoG = c.createGain(); lfoG.gain.value = 110;
-    lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+    this.windGain.gain.value = 0;
+    this.windGain.gain.setTargetAtTime(1, c.currentTime, 3);    // fade in on entry
+    this.windGain.connect(this.ambBus);
+    const layer = (type, f0, q, level, rateHz) => {
+      const src = c.createBufferSource();
+      src.buffer = pink; src.loop = true;
+      src.playbackRate.value = rateHz;
+      const f = c.createBiquadFilter(); f.type = type; f.frequency.value = f0; f.Q.value = q;
+      const g = c.createGain(); g.gain.value = level * 0.5;
+      const pan = c.createStereoPanner();
+      src.connect(f); f.connect(g); g.connect(pan); pan.connect(this.windGain);
+      src.start(0, Math.random() * 10);
+      return { f, g, pan, f0, level };
+    };
+    const layers = [
+      layer('lowpass', 380, 0.5, 0.20, 1.0),
+      layer('bandpass', 950, 0.7, 0.045, 0.83),
+    ];
     const gust = () => {
       if (!this.ctx) return;
-      if (c.state !== 'running') { setTimeout(gust, 3000); return; }   // don't schedule against a frozen clock
-      this.windGain.gain.setTargetAtTime(0.08 + Math.random() * 0.14, c.currentTime, 2.4);
-      setTimeout(gust, 4000 + Math.random() * 9000);
+      if (c.state !== 'running') { setTimeout(gust, 3000); return; }
+      const t = c.currentTime;
+      // mostly calm with occasional stronger gusts
+      const strength = Math.random() < 0.22 ? 0.75 + Math.random() * 0.25 : 0.2 + Math.random() * 0.35;
+      const tc = strength > 0.7 ? 1.4 : 2.6;
+      for (const L of layers) {
+        L.g.gain.setTargetAtTime(L.level * (0.25 + strength), t, tc);
+        L.f.frequency.setTargetAtTime(L.f0 * (0.7 + strength * 0.8), t, tc * 1.2);
+        L.pan.pan.setTargetAtTime((Math.random() - 0.5) * 0.7, t, 4);
+      }
+      setTimeout(gust, 2500 + Math.random() * 6000);
     };
     gust();
   }
@@ -288,6 +336,37 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
     ex.connect(lp); lp.connect(g); g.connect(this.sfxBus);
     ex.start(t); ex.stop(t + 0.35);
+  }
+
+  // a bite: a few short band-passed noise crunches, then a soft chew
+  bite(soft = false) {
+    if (!this.started) return;
+    const c = this.ctx;
+    let t = c.currentTime + 0.02;
+    const n = soft ? 2 : 3;
+    for (let i = 0; i < n; i++) {
+      const s = this._noiseSrc();
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass';
+      bp.frequency.value = (soft ? 900 : 2200) + Math.random() * 900; bp.Q.value = 1.4;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0, t);
+      g.gain.linearRampToValueAtTime(soft ? 0.05 : 0.11, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.07 + Math.random() * 0.03);
+      s.connect(bp); bp.connect(g); g.connect(this.sfxBus);
+      s.start(t); s.stop(t + 0.12);
+      t += 0.075 + Math.random() * 0.05;
+    }
+    for (let i = 0; i < 3; i++) {     // chewing
+      t += 0.22;
+      const s = this._noiseSrc();
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0, t);
+      g.gain.linearRampToValueAtTime(0.03, t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      s.connect(lp); lp.connect(g); g.connect(this.sfxBus);
+      s.start(t); s.stop(t + 0.2);
+    }
   }
 
   uiTick() {

@@ -125,13 +125,27 @@ export const FOODS = [
   },
 ];
 
+// What you get when you take something from the foods table (E), and how it
+// tastes bite by bite. `soft` picks the gentler chew sound.
+const TASTES = {
+  maize:    { bite: 'a roasted ear of blue maize', soft: false, notes: ['Smoky, nutty, sweet at the tip.', 'Nixtamal-soft kernels, charred at the edges.', 'Nine thousand years of plant breeding, gone in three bites.'] },
+  squash:   { bite: 'a wedge of fire-roasted squash', soft: true, notes: ['Sweet and buttery, a little caramel at the skin.', 'Soft as custard where the embers reached it.', 'The eldest sister, finished.'] },
+  beans:    { bite: 'a little bowl of stewed beans', soft: true, notes: ['Earthy, creamy, a bay-leaf warmth.', 'The generous sister gives again.', 'Scraped clean.'] },
+  amaranth: { bite: 'a honey-amaranth alegría', soft: false, notes: ['Crisp popped seed, bound with honey.', 'Like a very old granola bar.', 'Alegría means joy. Fair.'] },
+  quinoa:   { bite: 'a bowl of warm quinoa', soft: true, notes: ['Nutty, with a tiny pop to every grain.', 'Mild and grassy — mother-grain comfort.', 'Every last seed.'] },
+  cacao:    { bite: 'a roasted cacao bean', soft: false, notes: ['Bitter first — then fruit, then smoke.', 'No sugar at all. The ancestors were brave.', 'Your mouth is now very awake.'] },
+  manoomin: { bite: 'a bowl of parched manoomin', soft: false, notes: ['Toasty and smoky, faintly of lake water.', 'Long dark grains, each one hand-knocked into a canoe.', 'Miigwech.'] },
+  chile:    { bite: 'a dried red chile', soft: false, notes: ['Fruity — oh. Oh, there it is.', 'The heat climbs slowly up the back of your throat.', 'Worth it. Probably.'] },
+};
+for (const f of FOODS) Object.assign(f, TASTES[f.id]);
+
 export const ABOUT = {
   kicker: 'FIRST MARKS',
   otitle: 'An Open-Air Gallery of the World\'s Petroglyphs',
   meta: [['EXHIBITS', '21 engraved stones · 6 regional groves · 1 field-notes grove'],
          ['THE HEARTH', '5 ancient drinks · 8 founding foods'],
          ['HOURS', 'Perpetual dusk. The sconces are always lit.']],
-  body: 'Every engraving here is a respectful hand redrawing of a real petroglyph, at or near its published scale, with its site, culture and sources on the lectern beside it. (A petroglyph is pecked or carved into rock; a painted image is a pictograph.) These are not tracings, and the boulders are not the real stones — the originals belong to their landscapes and to the living peoples whose heritage they are.\n\nIf you ever stand before the real thing: never touch, chalk, or make rubbings — skin oils and abrasion destroy in seconds what deserts preserved for millennia. Walk gently, and support the custodians who keep these places.\n\nThe music is an original generative piece — wooden flute, wind, embers — an homage to no single tradition. Built with three.js; everything you see and hear is drawn and synthesized by hand.',
+  body: 'Every engraving here is carved from an openly licensed photograph or drawing of a real petroglyph — extracted by image processing, credited on its label — at or near its published scale, with its site, culture and sources on the lectern beside it; the few with no usable image are careful hand redrawings. (A petroglyph is pecked or carved into rock; a painted image is a pictograph.) The boulders are not the real stones — the originals belong to their landscapes and to the living peoples whose heritage they are.\n\nIf you ever stand before the real thing: never touch, chalk, or make rubbings — skin oils and abrasion destroy in seconds what deserts preserved for millennia. Walk gently, and support the custodians who keep these places.\n\nThe music is an original generative piece — wooden flute, wind, embers — an homage to no single tradition. Built with three.js; everything you see and hear is drawn and synthesized by hand.',
   source: 'Etiquette after U.S. National Park Service guidance',
 };
 
@@ -271,38 +285,143 @@ export function buildVesselMesh(v) {
 }
 
 // -------------------------------------------------------------- fire
+// A ring of rough, soot-stained hearth stones; a teepee of charred logs
+// whose cracks glow; a breathing bed of coals; three layers of flame (hot
+// core, body, ragged tips) that lean and lick together; sparks that spiral
+// up out of the light; slow smoke; and a light that flickers from noise
+// rather than a sine, with a low red ember light hugging the stones.
+function coalTexture(rng) {
+  const { canvas, ctx } = makeCanvas(256, 256);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 256, 256);
+  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255,150,40,0.95)'); g.addColorStop(0.45, 'rgba(200,60,10,0.7)');
+  g.addColorStop(0.8, 'rgba(60,14,4,0.4)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 260; i++) {               // dark coal lumps over the glow
+    const a = rng() * TAU, r = Math.sqrt(rng()) * 118;
+    ctx.fillStyle = `rgba(${10 + rng() * 20},${6 + rng() * 8},${4},${0.55 + rng() * 0.4})`;
+    ctx.beginPath();
+    ctx.ellipse(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 4 + rng() * 9, 3 + rng() * 7, rng() * 3, 0, TAU);
+    ctx.fill();
+  }
+  const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function charTexture(rng) {
+  // bark: sooty black with glowing cracks in the emissive map
+  const base = makeCanvas(128, 256), glow = makeCanvas(128, 256);
+  base.ctx.fillStyle = '#1c140e'; base.ctx.fillRect(0, 0, 128, 256);
+  glow.ctx.fillStyle = '#000'; glow.ctx.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 40; i++) {
+    base.ctx.fillStyle = rng() > 0.5 ? 'rgba(60,44,30,0.5)' : 'rgba(5,4,3,0.6)';
+    base.ctx.fillRect(rng() * 128, rng() * 256, 2 + rng() * 5, 10 + rng() * 40);
+  }
+  for (let i = 0; i < 26; i++) {           // cracks, denser toward the burning (lower) end
+    const y = 256 - Math.pow(rng(), 1.8) * 256, x = rng() * 128;
+    glow.ctx.strokeStyle = `rgba(255,${90 + rng() * 80},20,${0.5 + rng() * 0.5})`;
+    glow.ctx.lineWidth = 1 + rng() * 2;
+    glow.ctx.beginPath(); glow.ctx.moveTo(x, y);
+    glow.ctx.lineTo(x + (rng() - 0.5) * 24, y + (rng() - 0.5) * 10);
+    glow.ctx.lineTo(x + (rng() - 0.5) * 30, y + (rng() - 0.5) * 18);
+    glow.ctx.stroke();
+  }
+  const m = new THREE.CanvasTexture(base.canvas); m.colorSpace = THREE.SRGBColorSpace;
+  const e = new THREE.CanvasTexture(glow.canvas); e.colorSpace = THREE.SRGBColorSpace;
+  return { m, e };
+}
+
 function buildFire(scene, state) {
   const rng = mulberry(55);
   const fire = new THREE.Group();
   scene.add(fire);
+
+  // --- hearth stones: jittered icosahedra, sooty on top ---
   const stoneTex = makeRockTexture('paleGrey', 8);
-  const stoneMat = new THREE.MeshStandardMaterial({ map: stoneTex.map, normalMap: stoneTex.normalMap, roughness: 0.95 });
-  for (let i = 0; i < 11; i++) {
-    const a = (i / 11) * TAU;
-    const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24 + rng() * 0.1, 0), stoneMat);
-    s.position.set(Math.cos(a) * 0.95, 0.12, Math.sin(a) * 0.95);
-    s.rotation.set(rng() * 3, rng() * 3, rng() * 3);
-    s.castShadow = true;
+  const stoneMat = new THREE.MeshStandardMaterial({
+    map: stoneTex.map, normalMap: stoneTex.normalMap, color: 0x8d857c, roughness: 1, flatShading: false,
+  });
+  const nStones = 14;
+  for (let i = 0; i < nStones; i++) {
+    const a = (i / nStones) * TAU + (rng() - 0.5) * 0.15;
+    const geo = new THREE.IcosahedronGeometry(0.2 + rng() * 0.07, 1);
+    const p = geo.attributes.position;
+    const seed = rng() * 100;
+    for (let k = 0; k < p.count; k++) {
+      // jitter by position, not per vertex: the geometry is non-indexed, so
+      // per-vertex randomness tore the faces apart into spikes
+      const x = p.getX(k), y = p.getY(k), z = p.getZ(k);
+      const hsh = Math.sin(x * 91.3 + y * 57.1 + z * 33.7 + seed) * 43758.5453;
+      const f = 0.84 + (hsh - Math.floor(hsh)) * 0.26;
+      p.setXYZ(k, x * f, y * f * 0.72, z * f);
+    }
+    geo.computeVertexNormals();
+    const s = new THREE.Mesh(geo, stoneMat);
+    s.position.set(Math.cos(a) * 0.86, 0.07, Math.sin(a) * 0.86);
+    s.rotation.set((rng() - 0.5) * 0.4, rng() * 3, (rng() - 0.5) * 0.4);
+    s.castShadow = s.receiveShadow = true;
     fire.add(s);
   }
-  const logMat = new THREE.MeshStandardMaterial({ color: 0x3d2c1c, roughness: 0.9 });
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * TAU + 0.4;
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 1.0, 8), logMat);
-    log.position.set(Math.cos(a) * 0.22, 0.32, Math.sin(a) * 0.22);
-    log.rotation.z = Math.PI / 3.1;
-    log.rotation.y = -a;
-    log.castShadow = true;
-    fire.add(log);
+  // scorched ground inside the ring
+  const scorch = new THREE.Mesh(new THREE.CircleGeometry(0.95, 32),
+    new THREE.MeshStandardMaterial({ color: 0x16110d, roughness: 1, transparent: true, opacity: 0.85 }));
+  scorch.rotation.x = -Math.PI / 2; scorch.position.y = 0.012;
+  fire.add(scorch);
+
+  // --- coal bed ---
+  const coalMat = new THREE.MeshStandardMaterial({
+    color: 0x1a120c, roughness: 1, emissive: 0xffffff, emissiveMap: coalTexture(rng), emissiveIntensity: 1.2,
+    transparent: true, depthWrite: false,
+  });
+  const coals = new THREE.Mesh(new THREE.CircleGeometry(0.6, 36), coalMat);
+  coals.rotation.x = -Math.PI / 2; coals.position.y = 0.03;
+  fire.add(coals);
+  const lumpMat = new THREE.MeshStandardMaterial({ color: 0x14100c, roughness: 0.9, emissive: 0xff5a14, emissiveIntensity: 0.6 });
+  for (let i = 0; i < 16; i++) {
+    const a = rng() * TAU, r = Math.sqrt(rng()) * 0.42;
+    const l = new THREE.Mesh(new THREE.DodecahedronGeometry(0.03 + rng() * 0.035, 0), lumpMat);
+    l.position.set(Math.cos(a) * r, 0.04, Math.sin(a) * r);
+    l.rotation.set(rng() * 3, rng() * 3, rng() * 3);
+    fire.add(l);
   }
 
+  // --- teepee of charred logs ---
+  const { m: barkMap, e: barkGlow } = charTexture(rng);
+  const logMat = new THREE.MeshStandardMaterial({
+    map: barkMap, roughness: 0.95, emissive: 0xffffff, emissiveMap: barkGlow, emissiveIntensity: 1.0,
+  });
+  const logs = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU + 0.3;
+    const len = 0.95 + rng() * 0.2;
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, len, 9), logMat);
+    // foot on the coals near the ring, tops meeting over the centre
+    const foot = new THREE.Vector3(Math.cos(a) * 0.42, 0.03, Math.sin(a) * 0.42);
+    const top = new THREE.Vector3(Math.cos(a + 0.5) * 0.04, 0.72 + rng() * 0.12, Math.sin(a + 0.5) * 0.04);
+    const dir = top.clone().sub(foot);
+    log.scale.y = dir.length() / len;
+    log.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());   // wide end (bottom) on the coals
+    log.position.copy(foot).add(top).multiplyScalar(0.5);
+    log.castShadow = true;
+    fire.add(log);
+    logs.push(log);
+  }
+  // two unburnt spare logs by the ring
+  const spareMat = new THREE.MeshStandardMaterial({ color: 0x5a4330, roughness: 0.95 });
+  for (const [x, z, ry] of [[1.35, 0.55, 0.4], [1.42, 0.78, 0.2]]) {
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.065, 0.8, 9), spareMat);
+    sp.rotation.set(0, ry, Math.PI / 2); sp.position.set(x, 0.065, z);
+    sp.castShadow = true;
+    fire.add(sp);
+  }
+
+  // --- particles ---
   const softTex = (() => {
     const { canvas, ctx } = makeCanvas(64, 64);
     const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.5, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
-    const t = new THREE.CanvasTexture(canvas);
-    return t;
+    return new THREE.CanvasTexture(canvas);
   })();
 
   const mkPoints = (n, mat) => {
@@ -312,13 +431,10 @@ function buildFire(scene, state) {
     geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(n), 1));
     const p = new THREE.Points(geo, mat);
     p.frustumCulled = false;
-    scene.add(p);
+    fire.add(p);
     return p;
   };
-  const flameMat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    uniforms: { uTex: { value: softTex } },
-    vertexShader: `
+  const vert = `
       attribute float aFade; attribute float aSize;
       varying float vF;
       void main(){
@@ -326,79 +442,138 @@ function buildFire(scene, state) {
         gl_Position = projectionMatrix * mv;
         gl_PointSize = aSize * (660.0 / max(1.0, -mv.z));
         vF = aFade;
-      }`,
+      }`;
+  const flameShader = (hot, mid, cool, gain) => new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTex: { value: softTex } },
+    vertexShader: vert,
     fragmentShader: `
       uniform sampler2D uTex; varying float vF;
       void main(){
         vec4 t = texture2D(uTex, gl_PointCoord);
-        vec3 col = mix(vec3(1.0,0.93,0.58), vec3(1.0,0.48,0.08), smoothstep(0.08, 0.55, vF));
-        col = mix(col, vec3(0.55,0.09,0.02), smoothstep(0.55, 1.0, vF));
-        gl_FragColor = vec4(col, t.a * pow(1.0 - vF, 1.35) * 0.95);
+        vec3 col = mix(vec3(${hot}), vec3(${mid}), smoothstep(0.05, 0.5, vF));
+        col = mix(col, vec3(${cool}), smoothstep(0.5, 1.0, vF));
+        float a = t.a * pow(1.0 - vF, 1.3) * smoothstep(0.0, 0.08, vF + 0.02);
+        gl_FragColor = vec4(col, a * ${gain});
+      }`,
+  });
+  const coreMat = flameShader('1.0,0.88,0.55', '1.0,0.66,0.22', '1.0,0.40,0.06', '0.5');
+  const bodyMat = flameShader('1.0,0.68,0.25', '0.95,0.38,0.05', '0.5,0.09,0.02', '0.5');
+  const tipMat = flameShader('1.0,0.55,0.12', '0.85,0.22,0.03', '0.30,0.05,0.01', '0.55');
+  const sparkMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTex: { value: softTex } }, vertexShader: vert,
+    fragmentShader: `
+      uniform sampler2D uTex; varying float vF;
+      void main(){
+        vec4 t = texture2D(uTex, gl_PointCoord);
+        vec3 col = mix(vec3(1.0,0.85,0.45), vec3(1.0,0.35,0.05), vF);
+        float tw = step(0.2, fract(vF * 23.0)) * 0.5 + 0.5;          // twinkle
+        gl_FragColor = vec4(col, t.a * (1.0 - vF) * tw);
       }`,
   });
   const smokeMat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
-    uniforms: { uTex: { value: softTex } },
-    vertexShader: flameMat.vertexShader,
+    uniforms: { uTex: { value: softTex } }, vertexShader: vert,
     fragmentShader: `
       uniform sampler2D uTex; varying float vF;
       void main(){
         vec4 t = texture2D(uTex, gl_PointCoord);
-        gl_FragColor = vec4(vec3(0.06,0.05,0.05), t.a * (1.0 - vF) * 0.16);
+        vec3 col = mix(vec3(0.28,0.14,0.07), vec3(0.07,0.065,0.07), smoothstep(0.0, 0.3, vF)); // firelit underside
+        gl_FragColor = vec4(col, t.a * smoothstep(0.0, 0.15, vF) * (1.0 - vF) * 0.2);
       }`,
   });
-  const flames = mkPoints(60, flameMat);
-  const smoke = mkPoints(10, smokeMat);
-  const embers = mkPoints(16, flameMat);
 
-  const fp = [];
-  for (let i = 0; i < 60; i++) fp.push({ t: rng(), sp: 0.6 + rng() * 0.9, a: rng() * TAU, r: rng() * 0.20, sz: 0.12 + rng() * 0.16 });
-  const sp = [];
-  for (let i = 0; i < 10; i++) sp.push({ t: rng(), sp: 0.15 + rng() * 0.1, a: rng() * TAU, r: rng() * 0.3, sz: 0.45 + rng() * 0.5 });
-  const ep = [];
-  for (let i = 0; i < 16; i++) ep.push({ t: rng(), sp: 0.45 + rng() * 0.8, a: rng() * TAU, r: 0.08 + rng() * 0.26, sz: 0.018 + rng() * 0.028 });
+  const layers = [
+    { pts: mkPoints(26, coreMat), n: 26, rise: 0.6, sp: [1.4, 0.8], r: 0.14, sz: [0.07, 0.06], y0: 0.1, wob: 0.035 },
+    { pts: mkPoints(60, bodyMat), n: 60, rise: 1.25, sp: [0.8, 0.7], r: 0.24, sz: [0.16, 0.12], y0: 0.1, wob: 0.07 },
+    { pts: mkPoints(36, tipMat), n: 36, rise: 1.7, sp: [0.7, 0.5], r: 0.2, sz: [0.11, 0.08], y0: 0.45, wob: 0.11 },
+  ];
+  const sparks = { pts: mkPoints(44, sparkMat), n: 44 };
+  const smoke = { pts: mkPoints(22, smokeMat), n: 22 };
+  const P = (n, f) => Array.from({ length: n }, f);
+  for (const L of layers)
+    L.parts = P(L.n, () => ({ t: rng(), sp: L.sp[0] + rng() * L.sp[1], a: rng() * TAU, r: Math.sqrt(rng()) * L.r, sz: L.sz[0] + rng() * L.sz[1], ph: rng() * TAU }));
+  sparks.parts = P(sparks.n, () => ({ t: rng(), sp: 0.3 + rng() * 0.45, a: rng() * TAU, r: 0.05 + rng() * 0.25, sz: 0.012 + rng() * 0.02, h: 2.2 + rng() * 2.5, sw: 0.3 + rng() * 0.9, ph: rng() * TAU }));
+  smoke.parts = P(smoke.n, () => ({ t: rng(), sp: 0.08 + rng() * 0.06, a: rng() * TAU, r: rng() * 0.25, sz: 0.5 + rng() * 0.5, ph: rng() * TAU }));
 
-  // warm core glow at the base of the flames
+  // --- light: warm key + low ember fill, both driven by the same noise ---
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: softTex, color: 0xff8830, transparent: true, opacity: 0.18,
+    map: softTex, color: 0xff8a36, transparent: true, opacity: 0.16,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
-  glow.position.set(0, 0.6, 0);
-  glow.scale.set(2.5, 1.8, 1);
-  scene.add(glow);
-
-  const light = new THREE.PointLight(0xff9440, 26, 32, 1.9);
-  light.position.set(0, 1.2, 0);
-  scene.add(light);
+  glow.position.set(0, 0.55, 0);
+  glow.scale.set(2.2, 1.7, 1);
+  fire.add(glow);
+  const light = new THREE.PointLight(0xff8f3a, 12, 24, 1.8);
+  light.position.set(0, 1.05, 0);
+  fire.add(light);
+  const ember = new THREE.PointLight(0xff4a12, 2.2, 3.2, 2);
+  ember.position.set(0, 0.25, 0);
+  fire.add(ember);
 
   state.colliders.push({ x: 0, z: 0, r: 1.5 });
 
+  // smooth 1-D value noise for flicker and wind lean
+  const nz = (x) => {
+    const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+    const h = (k) => { const s = Math.sin(k * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+    return h(i) * (1 - u) + h(i + 1) * u;
+  };
+
+  const write = (L, fn) => {
+    const g = L.pts.geometry;
+    const pos = g.attributes.position.array, fade = g.attributes.aFade.array, size = g.attributes.aSize.array;
+    L.parts.forEach((p, i) => fn(p, i, pos, fade, size));
+    g.attributes.position.needsUpdate = g.attributes.aFade.needsUpdate = g.attributes.aSize.needsUpdate = true;
+  };
+
   return {
     update(dt, time) {
-      const animate = (points, parts, riseH, wobble) => {
-        const pos = points.geometry.attributes.position.array;
-        const fade = points.geometry.attributes.aFade.array;
-        const size = points.geometry.attributes.aSize.array;
-        for (let i = 0; i < parts.length; i++) {
-          const p = parts[i];
+      const flick = 0.72 + 0.5 * nz(time * 7.3) + 0.22 * nz(time * 19.1 + 4);
+      const leanX = (nz(time * 0.35) - 0.5) * 0.35, leanZ = (nz(time * 0.29 + 9) - 0.5) * 0.35;
+      for (const L of layers) {
+        write(L, (p, i, pos, fade, size) => {
           p.t += dt * p.sp;
-          if (p.t > 1) { p.t = 0; p.a = rng() * TAU; }
-          const rr = p.r * (1 - p.t * 0.6);
-          pos[i * 3] = Math.cos(p.a + time * wobble) * rr + Math.sin(time * 3.1 + p.a * 9.0) * 0.05 * p.t;
-          pos[i * 3 + 1] = 0.35 + p.t * riseH;
-          pos[i * 3 + 2] = Math.sin(p.a + time * wobble) * rr;
-          fade[i] = p.t;
-          size[i] = p.sz * (1 - p.t * 0.5);
-        }
-        points.geometry.attributes.position.needsUpdate = true;
-        points.geometry.attributes.aFade.needsUpdate = true;
-        points.geometry.attributes.aSize.needsUpdate = true;
-      };
-      animate(flames, fp, 1.3, 0.7);
-      animate(smoke, sp, 2.7, 0.3);
-      animate(embers, ep, 2.1, 1.3);
-      light.intensity = 24 + Math.sin(time * 9.3) * 3 + Math.sin(time * 23.7) * 2;
-      glow.material.opacity = 0.16 + Math.sin(time * 9.3) * 0.035 + Math.sin(time * 21.1) * 0.02;
+          if (p.t > 1) { p.t -= 1; p.a = rng() * TAU; p.r = Math.sqrt(rng()) * L.r; }
+          const t = p.t;
+          const rr = p.r * (1 - t * 0.75);                     // flames taper to a point
+          const lick = Math.sin(time * 6 + p.ph + t * 5) * L.wob * t;
+          pos[i * 3] = Math.cos(p.a) * rr + lick + leanX * t * t;
+          pos[i * 3 + 1] = L.y0 + t * L.rise * (0.85 + 0.3 * flick);
+          pos[i * 3 + 2] = Math.sin(p.a) * rr + Math.cos(time * 5 + p.ph) * L.wob * 0.6 * t + leanZ * t * t;
+          fade[i] = t;
+          size[i] = p.sz * (1 - t * 0.55) * (0.85 + 0.25 * flick);
+        });
+      }
+      write(sparks, (p, i, pos, fade, size) => {
+        p.t += dt * p.sp;
+        if (p.t > 1) { p.t -= 1; p.a = rng() * TAU; p.h = 2.2 + rng() * 2.5; }
+        const t = p.t, spin = p.a + t * p.sw * 6;
+        const rr = p.r + t * 0.5;
+        pos[i * 3] = Math.cos(spin) * rr + leanX * t * 3;
+        pos[i * 3 + 1] = 0.3 + t * p.h;
+        pos[i * 3 + 2] = Math.sin(spin) * rr + leanZ * t * 3;
+        fade[i] = t;
+        size[i] = p.sz;
+      });
+      write(smoke, (p, i, pos, fade, size) => {
+        p.t += dt * p.sp;
+        if (p.t > 1) { p.t -= 1; p.a = rng() * TAU; }
+        const t = p.t;
+        pos[i * 3] = Math.cos(p.a + time * 0.2) * p.r * (1 + t * 2) + leanX * t * 6;
+        pos[i * 3 + 1] = 1.1 + t * 3.4;
+        pos[i * 3 + 2] = Math.sin(p.a + time * 0.2) * p.r * (1 + t * 2) + leanZ * t * 6;
+        fade[i] = t;
+        size[i] = p.sz * (0.6 + t * 2.2);
+      });
+      light.intensity = 12 * flick;
+      light.position.set(leanX * 0.4, 1.0 + 0.08 * flick, leanZ * 0.4);
+      ember.intensity = 2.0 + 0.8 * nz(time * 2.1 + 3);
+      coalMat.emissiveIntensity = 0.9 + 0.5 * nz(time * 1.3);
+      logMat.emissiveIntensity = 0.7 + 0.6 * nz(time * 1.7 + 5);
+      lumpMat.emissiveIntensity = 0.4 + 0.5 * nz(time * 2.3 + 1);
+      glow.material.opacity = 0.11 + 0.08 * flick;
     },
   };
 }
@@ -465,18 +640,13 @@ function buildTable(scene, state, angDeg, dist) {
   return { G, lampLight, x, z };
 }
 
-// info cards readable from BOTH sides of a table
+// info cards readable from BOTH sides of a table. BoxGeometry already lays
+// the back (-z) face's UVs out to read correctly from behind, so both faces
+// share the same texture — flipping it (as this once did) mirrored the text.
 function cardMesh(tex) {
-  const flipped = tex.clone();
-  flipped.wrapS = THREE.RepeatWrapping;
-  flipped.repeat.x = -1;
-  flipped.needsUpdate = true;
   const clay = new THREE.MeshStandardMaterial({ color: 0xc8b190 });
-  return new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.012), [
-    clay, clay, clay, clay,
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }),
-    new THREE.MeshStandardMaterial({ map: flipped, roughness: 0.85 }),
-  ]);
+  const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
+  return new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.012), [clay, clay, clay, clay, face, face]);
 }
 
 function speckleTex(bg, colors, n = 260) {
@@ -542,6 +712,90 @@ function maizeCob(color) {
   }
   G.rotation.z = Math.PI / 2;
   return G;
+}
+
+// Hand-sized portions for eating, one per food. Built fresh each time you
+// take one — the table's own display never empties.
+export function buildBite(f) {
+  const G = new THREE.Group();
+  const mat = (c, r = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
+  if (f.id === 'maize') {
+    const cob = maizeCob('#4a4f66');
+    cob.rotation.set(0.2, 0, 1.2);
+    G.add(cob);
+  } else if (f.id === 'squash') {
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10, 0, Math.PI * 0.7), mat(0xd88a30, 0.55));
+    w.scale.set(1, 0.7, 1);
+    const skin = new THREE.Mesh(new THREE.SphereGeometry(0.061, 14, 10, 0, Math.PI * 0.7), new THREE.MeshStandardMaterial({ color: 0x5c6a2c, roughness: 0.8, side: THREE.BackSide }));
+    skin.scale.copy(w.scale);
+    G.add(w, skin);
+    G.rotation.set(0.3, 0.5, 0);
+  } else if (f.id === 'amaranth') {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.025, 0.05),
+      new THREE.MeshStandardMaterial({ map: speckleTex('#d8b870', ['#f0dca8', '#b8904a', '#e8cc88'], 500), roughness: 0.8 }));
+    G.add(bar);
+    G.rotation.set(0.4, 0.3, 0.1);
+  } else if (f.id === 'cacao') {
+    const bean = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), mat(0x4a2a18, 0.5));
+    bean.scale.set(1.5, 0.7, 1);
+    G.add(bean);
+  } else if (f.id === 'chile') {
+    const ch = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.09, 8), mat(0xa82818, 0.45));
+    ch.rotation.z = 1.9;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.02, 6), mat(0x4a5a20, 0.9));
+    stem.position.set(-0.047, 0.015, 0); stem.rotation.z = 0.6;
+    G.add(ch, stem);
+  } else {
+    const tex = {
+      beans: () => speckleTex('#6e5638', ['#7a2a1e', '#3a2c20', '#c8b190', '#8a5c34']),
+      quinoa: () => speckleTex('#c9b490', ['#e8dcc0', '#d5c4a0'], 420),
+      manoomin: () => speckleTex('#3a3226', ['#241f16', '#4a4030', '#5c5240'], 500),
+    }[f.id]();
+    const b = bowlWith(tex, 0.055);
+    b.position.y = -0.03;
+    G.add(b);
+  }
+  G.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return G;
+}
+
+// A standing iron lantern post: post, crook arm, bronze-capped glass lantern
+// with a live flame. Returns { group, flame } (flame for positioning a light).
+function buildLanternPost() {
+  const group = new THREE.Group();
+  const iron = new THREE.MeshStandardMaterial({ color: 0x35302b, roughness: 0.6, metalness: 0.7 });
+  const bronze = new THREE.MeshStandardMaterial({ color: 0x6a4c28, roughness: 0.38, metalness: 0.85 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.35, 10), iron);
+  post.position.y = 1.175; post.castShadow = true;
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.2, 10), iron);
+  foot.position.y = 0.1;
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.42, 8), iron);
+  arm.rotation.x = Math.PI / 2; arm.position.set(0, 2.25, 0.21);
+  const hook = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.007, 6, 12), iron);
+  hook.position.set(0, 2.2, 0.4);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.1, 4), bronze);
+  cap.position.set(0, 2.11, 0.4); cap.rotation.y = Math.PI / 4;
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.2, 4, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffb060, emissiveIntensity: 0.9, transparent: true, opacity: 0.55, side: THREE.DoubleSide, roughness: 0.2 }));
+  glass.position.set(0, 1.96, 0.4); glass.rotation.y = Math.PI / 4;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.025, 0.11), bronze);
+  base.position.set(0, 1.85, 0.4);
+  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {      // corner rods
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 5), bronze);
+    r.position.set(dx * 0.046, 1.96, 0.4 + dz * 0.046);
+    group.add(r);
+  }
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe2a8 }));
+  flame.position.set(0, 1.93, 0.4); flame.scale.y = 1.7;
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: (() => { const { canvas, ctx } = makeCanvas(64, 64); const g = ctx.createRadialGradient(32, 32, 1, 32, 32, 31);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(canvas); })(),
+    color: 0xffb46a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  halo.position.copy(flame.position); halo.scale.setScalar(0.55);
+  group.add(post, foot, arm, hook, cap, glass, base, flame, halo);
+  return { group, flame };
 }
 
 // -------------------------------------------------------------- build
@@ -669,6 +923,12 @@ export function buildPlaza(world) {
     slot.position.set(lx, 0, 0);
     food.G.add(slot);
     (foodPlacers[f.id] || (() => {}))(slot);
+    // invisible hit box over the dish: E takes a portion to eat
+    const grab = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.42), new THREE.MeshBasicMaterial({ visible: false }));
+    grab.position.set(lx, 1.17, -0.06);
+    food.G.add(grab);
+    grab.userData.interact = { type: 'food', f };
+    state.interactables.push(grab);
     const card = cardMesh(makeCardTexture(f.title, f.sub));
     card.position.set(lx, 1.125, 0.33);
     card.rotation.x = -0.3;
@@ -681,27 +941,62 @@ export function buildPlaza(world) {
   });
 
   // --- title monolith at the spawn path ---
+  // Seated properly: sample the terrain under its whole footprint and sink
+  // the stone below the lowest point (it used to hover on the downhill
+  // side), with a few half-buried stones hiding the seam.
   const mx = 3.1, mz = -19.5;
+  const mYaw = Math.atan2(0 - mx, -27 - mz);       // face the spawn point
+  const fwd = new THREE.Vector3(Math.sin(mYaw), 0, Math.cos(mYaw));
+  const rgt = new THREE.Vector3(Math.cos(mYaw), 0, -Math.sin(mYaw));
+  let gMin = Infinity, gMax = -Infinity;
+  for (const u of [-0.8, 0, 0.8]) for (const v of [-0.35, 0, 0.35]) {
+    const h = terrainHeight(mx + rgt.x * u + fwd.x * v, mz + rgt.z * u + fwd.z * v);
+    gMin = Math.min(gMin, h); gMax = Math.max(gMax, h);
+  }
+  const MH = 2.7 + (gMax - gMin) + 0.3;      // grows so the face above ground stays ~2.7 m
   const mTex = makeSteleTexture('FIRST MARKS', 'an open-air gallery of the world\'s petroglyphs');
   const mSide = makeRockTexture('varnish', 9);
-  const mGeo = new THREE.BoxGeometry(1.5, 2.7, 0.6, 8, 12, 4);
+  const mGeo = new THREE.BoxGeometry(1.5, MH, 0.6, 8, 12, 4);
   const mSideMat = new THREE.MeshStandardMaterial({ map: mSide.map, normalMap: mSide.normalMap, roughness: 0.95 });
   const mono = new THREE.Mesh(mGeo, [mSideMat, mSideMat, mSideMat, mSideMat,
     new THREE.MeshStandardMaterial({ map: mTex, roughness: 0.9 }), mSideMat]);
-  mono.position.set(mx, terrainHeight(mx, mz) + 1.2, mz);
-  mono.rotation.y = Math.atan2(0 - mx, -27 - mz);       // face the spawn point
+  mono.position.set(mx, gMin - 0.3 + MH / 2, mz);   // bottom 0.3 m under the lowest ground
+  mono.rotation.y = mYaw;
   mono.castShadow = mono.receiveShadow = true;
   scene.add(mono);
   mono.userData.interact = { type: 'overlay', data: ABOUT };
   state.interactables.push(mono);
   state.colliders.push({ x: mx, z: mz, r: 1.1 });
-  // a little lamp for the title stone
-  const monoLight = new THREE.PointLight(0xffc07a, 9, 9, 1.8);
-  monoLight.position.set(mx - 1.2, terrainHeight(mx, mz) + 0.5, mz - 1.2);
+  const rubbleMat = new THREE.MeshStandardMaterial({ map: mSide.map, roughness: 1, color: 0xb8a898 });
+  for (let i = 0; i < 7; i++) {
+    const u = (i / 6 - 0.5) * 1.9, v = (rng() > 0.5 ? 1 : -1) * (0.34 + rng() * 0.12);
+    const rx = mx + rgt.x * u + fwd.x * v, rz = mz + rgt.z * u + fwd.z * v;
+    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.1 + rng() * 0.09, 0), rubbleMat);
+    r.scale.y = 0.6;
+    r.position.set(rx, terrainHeight(rx, rz) + 0.01, rz);
+    r.rotation.set(rng() * 3, rng() * 3, rng() * 3);
+    r.castShadow = r.receiveShadow = true;
+    scene.add(r);
+  }
+
+  // Its light now comes from somewhere: an iron lantern post, in the same
+  // bronze as the gallery sconces, standing front-left of the stone.
+  const lantern = buildLanternPost();
+  const lx = mx + fwd.x * 1.25 - rgt.x * 1.05, lz = mz + fwd.z * 1.25 - rgt.z * 1.05;
+  lantern.group.position.set(lx, terrainHeight(lx, lz) - 0.15, lz);
+  lantern.group.rotation.y = Math.atan2(mx - lx, mz - lz);     // arm reaches toward the stone
+  scene.add(lantern.group);
+  state.colliders.push({ x: lx, z: lz, r: 0.25 });
+  lantern.group.updateMatrixWorld(true);
+  const monoLight = new THREE.PointLight(0xffc07a, 5.5, 11, 1.7);
+  monoLight.position.copy(lantern.flame.getWorldPosition(new THREE.Vector3()));
   scene.add(monoLight);
 
   function update(dt, time) {
     fire.update(dt, time);
+    const lf = 0.9 + 0.1 * Math.sin(time * 9.1) * Math.sin(time * 3.7 + 1);
+    monoLight.intensity = 5.5 * lf;
+    lantern.flame.scale.set(1, 1.7 * lf, 1);
     bar.lampLight.intensity = 2.9 + Math.sin(time * 11.7) * 0.55;
     food.lampLight.intensity = 2.9 + Math.sin(time * 13.1 + 2) * 0.55;
   }
