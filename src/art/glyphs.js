@@ -4,7 +4,13 @@
 // catches the grooves.
 
 import * as THREE from 'three';
-import { mulberry, fbm2, TAU, DEG, clamp, makeCanvas } from '../util.js';
+import { mulberry, tileFbm, TAU, DEG, clamp, makeCanvas } from '../util.js';
+
+// Texture filtering: the renderer reports its anisotropy limit at startup.
+// Peck marks are tiny, high-contrast details; seen at a slant they shimmer
+// unless the GPU filters them anisotropically.
+let maxAniso = 4;
+export const setMaxAnisotropy = (n) => { maxAniso = Math.max(1, n); };
 
 // Rock finishes. `engrave` is the exposed color of a fresh peck; on desert
 // varnish it is lighter than the crust, on plain sandstone the groove reads
@@ -46,7 +52,32 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
   const X = (x) => (x + wM / 2) * ppm;
   const Y = (y) => (hM / 2 - y - yOff) * ppm;
 
+  // Extracted masks are carved straight into an alpha buffer in plain JS:
+  // tens of thousands of tiny anti-aliased discs rasterise far faster here
+  // than as canvas paths (which cost ~0.5 s per stone). Hand-drawn glyphs
+  // still use the canvas API below.
+  const CW = ctx.canvas.width, CH = ctx.canvas.height;
+  let buf = null;
+  const B = () => buf || (buf = new Float32Array(CW * CH));
+  function splat(cx, cy, r, a) {
+    const b = B();
+    const x0 = Math.max(0, Math.floor(cx - r - 0.5)), x1 = Math.min(CW - 1, Math.floor(cx + r + 0.5));
+    const y0 = Math.max(0, Math.floor(cy - r - 0.5)), y1 = Math.min(CH - 1, Math.floor(cy + r + 0.5));
+    for (let y = y0; y <= y1; y++) {
+      const dy = y + 0.5 - cy;
+      for (let x = x0; x <= x1; x++) {
+        const dx = x + 0.5 - cx;
+        let c = r + 0.5 - Math.sqrt(dx * dx + dy * dy);
+        if (c <= 0) continue;
+        c = (c > 1 ? 1 : c) * a;
+        const i = y * CW + x;
+        b[i] += c * (1 - b[i]);
+      }
+    }
+  }
+
   function dot(px, py, r, a) {
+    g.canvasUsed = true;
     ctx.globalAlpha = a;
     ctx.beginPath();
     ctx.arc(px, py, r, 0, TAU);
@@ -107,7 +138,7 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
   };
 
   const g = {
-    rng, arc,
+    rng, arc, canvasUsed: false,
     line: (pts, w = 0.03) => peck(pts, w),
     poly: (pts, o = {}) => {
       const closed = [...pts, pts[0]];
@@ -156,6 +187,7 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
       ctx.globalAlpha = 1;
     },
     wash: (pts, alpha = 0.22) => {
+      g.canvasUsed = true;
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.fillStyle = '#fff';
@@ -355,21 +387,24 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
     const bits = decodeMask(L);
     const px0 = X(L.x - L.wm / 2), py0 = Y(L.y + L.hm / 2);
     const pw = L.wm * ppm, ph = L.hm * ppm;
-    // groove floor
-    const mc = document.createElement('canvas');
-    mc.width = L.w; mc.height = L.h;
-    const mctx = mc.getContext('2d');
-    const img = mctx.createImageData(L.w, L.h);
-    for (let i = 0; i < bits.length; i++) if (bits[i]) { img.data[i * 4 + 3] = 255; img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = 255; }
-    mctx.putImageData(img, 0, 0);
-    ctx.save();
-    ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = 0.42 * (L.depth ?? 1);
-    ctx.filter = 'blur(0.6px)';
-    ctx.drawImage(mc, px0, py0, pw, ph);
-    ctx.restore();
+    const b = B();
+    // groove floor: the mask, bilinearly resampled to the panel's pixels
+    const f = 0.42 * (L.depth ?? 1);
+    const bx0 = Math.max(0, Math.floor(px0)), bx1 = Math.min(CW, Math.ceil(px0 + pw));
+    const by0 = Math.max(0, Math.floor(py0)), by1 = Math.min(CH, Math.ceil(py0 + ph));
+    const kx = L.w / pw, ky = L.h / ph;
+    for (let y = by0; y < by1; y++) {
+      const my = clamp((y + 0.5 - py0) * ky - 0.5, 0, L.h - 1);
+      const yi = Math.floor(my), fy = my - yi, yj = Math.min(yi + 1, L.h - 1);
+      for (let x = bx0; x < bx1; x++) {
+        const mx = clamp((x + 0.5 - px0) * kx - 0.5, 0, L.w - 1);
+        const xi = Math.floor(mx), fx = mx - xi, xj = Math.min(xi + 1, L.w - 1);
+        const v = ((bits[yi * L.w + xi] * (1 - fx) + bits[yi * L.w + xj] * fx) * (1 - fy) +
+                   (bits[yj * L.w + xi] * (1 - fx) + bits[yj * L.w + xj] * fx) * fy) * f;
+        if (v > 0) { const i = y * CW + x; b[i] += v * (1 - b[i]); }
+      }
+    }
     // peck marks: ~one hammer strike per 2.3 px of groove
-    ctx.fillStyle = '#fff';
     const step = 2.3, sx = L.w / pw, sy = L.h / ph;
     const r0 = Math.max(0.8, Math.min(2.2, ppm * 0.006));
     for (let yy = 0; yy < ph; yy += step) {
@@ -380,11 +415,12 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
         const my2 = Math.min(L.h - 1, Math.max(0, Math.floor(jy * sy)));
         if (!bits[my2 * L.w + mx] && !bits[my * L.w + mx]) continue;
         if (rng() < 0.12) continue;                       // unstruck gaps
-        dot(px0 + jx, py0 + jy, r0 * (0.55 + rng() * 0.75), 0.35 + rng() * 0.5);
+        splat(px0 + jx, py0 + jy, r0 * (0.55 + rng() * 0.75), 0.35 + rng() * 0.5);
       }
     }
-    ctx.globalAlpha = 1;
   };
+
+  g.buffer = () => buf;
 
   g.footprint3 = (at, size, dir = 1) => {
     for (const a of [-28, 0, 28])
@@ -395,12 +431,23 @@ function makeGlyph(ctx, wM, hM, ppm, rng, yOff = 0) {
 }
 
 // ------------------------------------------------------- texture generation
-function heightToNormal(height, W, H, strength) {
+// white, with the given 0..1 alpha
+function alphaImage(alpha, W, H) {
+  const img = new ImageData(W, H), d = img.data;
+  for (let i = 0; i < alpha.length; i++) {
+    const j = i * 4;
+    d[j] = d[j + 1] = d[j + 2] = 255;
+    d[j + 3] = alpha[i] * 255;
+  }
+  return img;
+}
+
+function heightToNormal(height, W, H, strength, wrap = false) {
   const img = new Uint8ClampedArray(W * H * 4);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      const xm = Math.max(x - 1, 0), xp = Math.min(x + 1, W - 1);
-      const ym = Math.max(y - 1, 0), yp = Math.min(y + 1, H - 1);
+      const xm = wrap ? (x + W - 1) % W : Math.max(x - 1, 0), xp = wrap ? (x + 1) % W : Math.min(x + 1, W - 1);
+      const ym = wrap ? (y + H - 1) % H : Math.max(y - 1, 0), yp = wrap ? (y + 1) % H : Math.min(y + 1, H - 1);
       const dx = (height[y * W + xp] - height[y * W + xm]) * strength;
       const dy = (height[yp * W + x] - height[ym * W + x]) * strength;
       const inv = 1 / Math.hypot(dx, dy, 1);
@@ -412,6 +459,18 @@ function heightToNormal(height, W, H, strength) {
     }
   }
   return img;
+}
+
+// Rock micro-relief shared by every panel (each reads it at its own offset):
+// broad undulation plus fine grain, matching the old per-pixel fBm.
+const RSIZE = 512, RMASK = RSIZE - 1;
+let _relief = null;
+function relief() {
+  if (_relief) return _relief;
+  const a = tileFbm(RSIZE, 18, 3, 3), b = tileFbm(RSIZE, 72, 2, 4);
+  _relief = new Float32Array(RSIZE * RSIZE);
+  for (let i = 0; i < _relief.length; i++) _relief[i] = a[i] * 2.6 + b[i];
+  return _relief;
 }
 
 export function renderPanelTexture({ wM, hM, style, seed = 1, draw, glow = true, yOff = 0 }) {
@@ -467,19 +526,47 @@ export function renderPanelTexture({ wM, hM, style, seed = 1, draw, glow = true,
   }
 
   // --- glyph layer (white alpha marks) ---
-  const gl = makeCanvas(W, H);
+  const gl = makeCanvas(W, H, true);    // CPU-backed: its alpha is read back below
   const g = makeGlyph(gl.ctx, wM, hM, ppm, mulberry(seed * 131 + 7), yOff);
   draw(g);
-  // repatination — age the marks patchily
-  gl.ctx.globalCompositeOperation = 'destination-out';
-  for (let i = 0; i < 26; i++) {
-    gl.ctx.globalAlpha = 0.12 + rng() * 0.30;
-    gl.ctx.beginPath();
-    gl.ctx.arc(rng() * W, rng() * H, 3 + rng() * 13, 0, TAU);
-    gl.ctx.fill();
+  let alpha = g.buffer();
+  if (alpha && g.canvasUsed) {
+    // mixed panel: lay the carved buffer under the canvas strokes
+    const t = makeCanvas(W, H, true);
+    t.ctx.putImageData(alphaImage(alpha, W, H), 0, 0);
+    gl.ctx.globalCompositeOperation = 'destination-over';
+    gl.ctx.drawImage(t.canvas, 0, 0);
+    gl.ctx.globalCompositeOperation = 'source-over';
+    alpha = null;
   }
-  gl.ctx.globalCompositeOperation = 'source-over';
-  gl.ctx.globalAlpha = 1;
+  // repatination — age the marks patchily
+  const repat = [];
+  for (let i = 0; i < 26; i++) repat.push([0.12 + rng() * 0.30, rng() * W, rng() * H, 3 + rng() * 13]);
+  if (alpha) {
+    for (const [a, cx, cy, r] of repat) {
+      const x0 = Math.max(0, Math.floor(cx - r - 1)), x1 = Math.min(W - 1, Math.ceil(cx + r + 1));
+      const y0 = Math.max(0, Math.floor(cy - r - 1)), y1 = Math.min(H - 1, Math.ceil(cy + r + 1));
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const c = clamp(r + 0.5 - Math.hypot(x + 0.5 - cx, y + 0.5 - cy), 0, 1);
+          if (c > 0) alpha[y * W + x] *= 1 - c * a;
+        }
+    }
+    gl.ctx.putImageData(alphaImage(alpha, W, H), 0, 0);
+  } else {
+    gl.ctx.globalCompositeOperation = 'destination-out';
+    for (const [a, cx, cy, r] of repat) {
+      gl.ctx.globalAlpha = a;
+      gl.ctx.beginPath();
+      gl.ctx.arc(cx, cy, r, 0, TAU);
+      gl.ctx.fill();
+    }
+    gl.ctx.globalCompositeOperation = 'source-over';
+    gl.ctx.globalAlpha = 1;
+    const d = gl.ctx.getImageData(0, 0, W, H).data;
+    alpha = new Float32Array(W * H);
+    for (let i = 0; i < alpha.length; i++) alpha[i] = d[i * 4 + 3] / 255;
+  }
 
   // --- composite: shadow pass then tinted engraving ---
   const tint = makeCanvas(W, H);
@@ -515,37 +602,51 @@ export function renderPanelTexture({ wM, hM, style, seed = 1, draw, glow = true,
   ctx.fillRect(0, 0, W, H);
 
   // --- normal map: rock micro-relief minus engraved grooves ---
-  // Built at half resolution: visually identical once filtered, quarter the
-  // GPU memory and 4x faster to generate.
+  // Built at half resolution: visually identical once filtered, a quarter of
+  // the memory. The groove depth is the glyph alpha, 2×2-averaged and then
+  // softened with a 3×3 blur, all in plain arrays (no canvas filters, no GPU
+  // readback); the relief comes from a shared tiling noise field.
   const W2 = Math.ceil(W / 2), H2 = Math.ceil(H / 2);
-  const bl = makeCanvas(W2, H2);
-  bl.ctx.filter = 'blur(1px)';
-  bl.ctx.drawImage(gl.canvas, 0, 0, W2, H2);
-  const glyphData = bl.ctx.getImageData(0, 0, W2, H2).data;
-  const height = new Float32Array(W2 * H2);
+  const half = new Float32Array(W2 * H2);
   for (let y = 0; y < H2; y++)
-    for (let x = 0; x < W2; x++)
-      height[y * W2 + x] =
-        fbm2((x + seed * 37) * 0.036, y * 0.036, 3) * 2.6 +
-        fbm2(x * 0.14, (y + seed * 11) * 0.14, 2) * 1.0 -
-        (glyphData[(y * W2 + x) * 4 + 3] / 255) * 4.2;
+    for (let x = 0; x < W2; x++) {
+      const x0 = x * 2, y0 = y * 2, x1 = Math.min(x0 + 1, W - 1), y1 = Math.min(y0 + 1, H - 1);
+      half[y * W2 + x] = (alpha[y0 * W + x0] + alpha[y0 * W + x1] + alpha[y1 * W + x0] + alpha[y1 * W + x1]) / 4;
+    }
+  const R = relief();
+  const ox = (seed * 37) & RMASK, oy = (seed * 11) & RMASK;
+  const height = new Float32Array(W2 * H2);
+  for (let y = 0; y < H2; y++) {
+    const ym = Math.max(y - 1, 0), yp = Math.min(y + 1, H2 - 1);
+    const rrow = ((y + oy) & RMASK) * RSIZE;
+    for (let x = 0; x < W2; x++) {
+      const xm = Math.max(x - 1, 0), xp = Math.min(x + 1, W2 - 1);
+      const groove = (half[ym * W2 + xm] + half[ym * W2 + x] + half[ym * W2 + xp] +
+        half[y * W2 + xm] + half[y * W2 + x] * 2 + half[y * W2 + xp] +
+        half[yp * W2 + xm] + half[yp * W2 + x] + half[yp * W2 + xp]) / 10;
+      height[y * W2 + x] = R[rrow + ((x + ox) & RMASK)] - groove * 4.2;
+    }
+  }
   const nImg = heightToNormal(height, W2, H2, 0.85);
   const nCanvas = makeCanvas(W2, H2);
   nCanvas.ctx.putImageData(new ImageData(nImg, W2, H2), 0, 0);
 
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 4;
+  map.anisotropy = maxAniso;
   const normalMap = new THREE.CanvasTexture(nCanvas.canvas);
-  normalMap.anisotropy = 2;
+  normalMap.anisotropy = maxAniso;
   return { map, normalMap };
 }
 
-// Tiling rock texture for boulder sides/backs.
+// Tiling rock texture for boulder sides/backs — one per finish, shared by
+// every stone in that finish (they tile, so a per-stone seed bought nothing
+// but seconds of startup).
 const sideCache = new Map();
-export function makeRockTexture(style, seed = 1) {
-  const key = style + seed;
+export function makeRockTexture(style) {
+  const key = style;
   if (sideCache.has(key)) return sideCache.get(key);
+  const seed = Object.keys(STYLES).indexOf(style) + 2;
   const st = STYLES[style] || STYLES.varnish;
   const S = 512;
   const rng = mulberry(seed * 331 + 5);
@@ -564,16 +665,17 @@ export function makeRockTexture(style, seed = 1) {
     ctx.fillStyle = rng() > 0.5 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.045)';
     ctx.fillRect(rng() * S, rng() * S, 1.5, 1.5);
   }
+  const a = tileFbm(S, 10, 3, seed), b = tileFbm(S, 46, 2, seed + 50);
   const height = new Float32Array(S * S);
-  for (let y = 0; y < S; y++)
-    for (let x = 0; x < S; x++)
-      height[y * S + x] = fbm2(x * 0.02 + seed * 3, y * 0.02, 3) * 5 + fbm2(x * 0.09, y * 0.09, 2) * 1.6;
-  const nImg = heightToNormal(height, S, S, 0.8);
+  for (let i = 0; i < height.length; i++) height[i] = a[i] * 5 + b[i] * 1.6;
+  const nImg = heightToNormal(height, S, S, 0.8, true);
   const nCanvas = makeCanvas(S, S);
   nCanvas.ctx.putImageData(new ImageData(nImg, S, S), 0, 0);
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = maxAniso;
   const normalMap = new THREE.CanvasTexture(nCanvas.canvas);
+  normalMap.anisotropy = maxAniso;
   const out = { map, normalMap };
   sideCache.set(key, out);
   return out;

@@ -44,7 +44,9 @@ that single file is the entire gallery. `npm run dist` regenerates it.
 
 WASD + mouse to walk (Shift or double-tap **W** to run) · **E** read labels /
 take pottery or food / sip / take a bite / sit by the fire · **G** set it down ·
-**N** dusk ⇄ night · **M** mute · **Q** performance mode · Esc frees the cursor.
+**N** dusk ⇄ night · **M** mute · **Q** performance mode · **H** all controls ·
+Esc frees the cursor. Labels open short; the fold below each one holds the full
+text, details and sources.
 
 On a phone or tablet: left thumb walks (push to the rim to run), right thumb
 looks, and on-screen buttons stand in for E, G, N and M.

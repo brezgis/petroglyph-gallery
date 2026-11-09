@@ -6,11 +6,11 @@ import * as THREE from 'three';
 import { clamp } from './util.js';
 import { REGIONS } from './layout.js';
 import { buildBite } from './world/plaza.js';
+import { K } from './ui.js';
 
 const REGION_OF = {};
 for (const r of REGIONS) for (const id of r.panels) REGION_OF[id] = r.name;
 
-const K = (k) => `<span class="key">${k}</span>`;
 
 export function setupInteract(world, player, ui, audio) {
   const ray = new THREE.Raycaster();
@@ -58,7 +58,7 @@ export function setupInteract(world, player, ui, audio) {
     // a held vessel shouldn't catch the interaction ray in front of your face
     const idx = state.interactables.indexOf(mesh);
     if (idx !== -1) state.interactables.splice(idx, 1);
-    ui.setHeld(`${v.name} — ${v.drink}`, `${K('E')} sip · ${K('G')} set down`);
+    ui.setHeld(v.name, `${K('E')} sip &nbsp; ${K('G')} set down`);
     ui.toast(`${v.drink}. ${v.notes[0]}`);
     audio.uiTick();
   }
@@ -67,7 +67,7 @@ export function setupInteract(world, player, ui, audio) {
     const mesh = buildBite(f);
     heldGroup.add(mesh);
     state.held = { kind: 'food', f, mesh, bites: 0 };
-    ui.setHeld(`${f.bite[0].toUpperCase()}${f.bite.slice(1)}`, `${K('E')} take a bite · ${K('G')} put it back`);
+    ui.setHeld(`${f.bite[0].toUpperCase()}${f.bite.slice(1)}`, `${K('E')} bite &nbsp; ${K('G')} put back`);
     ui.toast(`You take ${f.bite}.`);
     audio.uiTick();
   }
@@ -159,10 +159,10 @@ export function setupInteract(world, player, ui, audio) {
       } else if (it.type === 'overlay') {
         openOverlay(() => ui.showCard(it.data));
       } else if (it.type === 'vessel') {
-        if (state.held) ui.toast('Hands full — G to set it down first.');
+        if (state.held) ui.toast('Your hands are full. G sets it down.');
         else pickup(current, it.v);
       } else if (it.type === 'food') {
-        if (state.held) ui.toast('Hands full — G to set it down first.');
+        if (state.held) ui.toast('Your hands are full. G sets it down.');
         else takeFood(it.f);
       } else if (it.type === 'bench') {
         if (player.sitting) player.stand();
@@ -195,10 +195,11 @@ export function setupInteract(world, player, ui, audio) {
     }
   });
 
-  // clicking the dim backdrop also closes the card (handy once the cursor is free)
+  // clicking the dim backdrop or the close button also closes the card
   document.getElementById('dim').addEventListener('click', () => {
     if (ui.overlayOpen) closeOverlay();
   });
+  ui.onClose = () => { if (ui.overlayOpen) closeOverlay(); };
 
   function update(dt) {
     sipCool = Math.max(0, sipCool - dt);
@@ -257,21 +258,19 @@ export function setupInteract(world, player, ui, audio) {
     }
     if (current) {
       const it = current.userData.interact;
-      if (it.type === 'panel') ui.setPrompt(`${K('E')} read — <i>${it.def.title}</i>`);
-      else if (it.type === 'overlay') ui.setPrompt(`${K('E')} read — <i>${it.data.title}</i>`);
-      else if (it.type === 'bench') ui.setPrompt(player.sitting ? `${K('E')} stand up` : `${K('E')} sit by the fire`);
+      if (it.type === 'panel') ui.setPrompt(`${K('E')} Read <i>${it.def.title}</i>`);
+      else if (it.type === 'overlay') ui.setPrompt(`${K('E')} Read <i>${it.data.title}</i>`);
+      else if (it.type === 'bench') ui.setPrompt(player.sitting ? `${K('E')} Stand up` : `${K('E')} Sit by the fire`);
       else if (it.type === 'vessel')
-        ui.setPrompt(`${K('E')} take the ${it.v.name} — <i>${it.v.drink}</i>`);
+        ui.setPrompt(`${K('E')} Take the ${it.v.name}`);
       else if (it.type === 'food')
-        ui.setPrompt(`${K('E')} take ${it.f.bite}`);
+        ui.setPrompt(`${K('E')} Take ${it.f.bite}`);
     } else if (state.held) {
-      ui.setPrompt(state.held.kind === 'food'
-        ? `${K('E')} take a bite · ${K('G')} put it back`
-        : `${K('E')} take a sip · ${K('G')} set it down`);
+      ui.setPrompt(null);      // the held-item chip already says what E and G do
     } else {
       ui.setPrompt(null);
     }
   }
 
-  return { update };
+  return { update, openCard: (data) => openOverlay(() => ui.showCard(data)) };
 }

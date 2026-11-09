@@ -142,7 +142,7 @@ export function buildTerrain(world) {
 
   const tex = new THREE.CanvasTexture(paintGround());
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;      // clamped to the GPU's limit by three.js
   const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }));
   ground.receiveShadow = true;
   scene.add(ground);
@@ -234,9 +234,12 @@ export function buildTerrain(world) {
       void main(){
         vec3 col = mix(vec3(0.185,0.20,0.148), vec3(0.36,0.345,0.225), vY) * vShade;
         col = mix(col, col * vec3(0.42,0.50,0.78), uNight * 0.62);
+        col = pow(col, vec3(2.2));      // authored in sRGB; light and fog are linear
         float f = 1.0 - exp(-vDist * vDist * uFogDensity * uFogDensity);
         col = mix(col, uFogColor, f);
         gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
   });
   const grass = new THREE.Mesh(grassGeo, grassMat);

@@ -7,13 +7,13 @@ import { mulberry, TAU, clamp, makeCanvas, lerp } from '../util.js';
 import { makeCardTexture, makeSteleTexture } from '../art/labels.js';
 import { makeRockTexture } from '../art/glyphs.js';
 import { terrainHeight } from './terrain.js';
+import { mergeStatic } from './merge.js';
 
 // ------------------------------------------------------------------ data
 export const VESSELS = [
   {
     id: 'jiahu', shape: 'jar', name: 'Jiahu jar',
     drink: 'Rice–honey–hawthorn wine',
-    kicker: 'FROM THE HEARTH — THE POTTERY BAR',
     otitle: 'The Oldest Drink in the World',
     meta: [['VESSEL', 'Globular jar — replica after Jiahu, Henan, China'],
            ['CONTENTS', 'Fermented rice, honey & hawthorn / wild grape'],
@@ -27,7 +27,6 @@ export const VESSELS = [
   {
     id: 'chaco', shape: 'cylinder', name: 'Chaco cylinder jar',
     drink: 'Frothed cacao',
-    kicker: 'FROM THE HEARTH — THE POTTERY BAR',
     otitle: 'Chocolate, Two Thousand Kilometres from Home',
     meta: [['VESSEL', 'Cylinder jar, white slip & black hatching — after Pueblo Bonito'],
            ['CONTENTS', 'Frothed ceremonial cacao'],
@@ -41,7 +40,6 @@ export const VESSELS = [
   {
     id: 'qero', shape: 'qero', name: 'Inca qero',
     drink: 'Chicha de jora (maize beer)',
-    kicker: 'FROM THE HEARTH — THE POTTERY BAR',
     otitle: 'Drink With Both Hands',
     meta: [['VESSEL', 'Flared beaker (qero), banded geometry — Inca form'],
            ['CONTENTS', 'Chicha de jora — sprouted-maize beer'],
@@ -55,7 +53,6 @@ export const VESSELS = [
   {
     id: 'pulque', shape: 'cup', name: 'Pulque cup',
     drink: 'Pulque (octli) — fermented agave sap',
-    kicker: 'FROM THE HEARTH — THE POTTERY BAR',
     otitle: 'The Drink of Four Hundred Rabbits',
     meta: [['VESSEL', 'Footed cup, black-on-orange — after Aztec polychrome'],
            ['CONTENTS', 'Pulque — fermented aguamiel of the maguey'],
@@ -69,7 +66,6 @@ export const VESSELS = [
   {
     id: 'wari', shape: 'kero', name: 'Wari kero',
     drink: 'Chicha de molle (peppertree brew)',
-    kicker: 'FROM THE HEARTH — THE POTTERY BAR',
     otitle: 'The Brewery on the Mesa',
     meta: [['VESSEL', 'Tall polychrome kero — after Cerro Baúl, Peru'],
            ['CONTENTS', 'Chicha de molle — pink-peppertree berry brew'],
@@ -140,8 +136,9 @@ const TASTES = {
 for (const f of FOODS) Object.assign(f, TASTES[f.id]);
 
 export const ABOUT = {
-  kicker: 'FIRST MARKS',
-  otitle: 'An Open-Air Gallery of the World\'s Petroglyphs',
+  where: 'About the gallery',
+  title: 'First Marks',
+  titlesub: 'An open-air gallery of the world\'s petroglyphs',
   meta: [['EXHIBITS', '21 engraved stones · 6 regional groves · 1 field-notes grove'],
          ['THE HEARTH', '5 ancient drinks · 8 founding foods'],
          ['HOURS', 'Perpetual dusk. The sconces are always lit.']],
@@ -337,7 +334,7 @@ function buildFire(scene, state) {
   scene.add(fire);
 
   // --- hearth stones: jittered icosahedra, sooty on top ---
-  const stoneTex = makeRockTexture('paleGrey', 8);
+  const stoneTex = makeRockTexture('paleGrey');
   const stoneMat = new THREE.MeshStandardMaterial({
     map: stoneTex.map, normalMap: stoneTex.normalMap, color: 0x8d857c, roughness: 1, flatShading: false,
   });
@@ -390,7 +387,6 @@ function buildFire(scene, state) {
   const logMat = new THREE.MeshStandardMaterial({
     map: barkMap, roughness: 0.95, emissive: 0xffffff, emissiveMap: barkGlow, emissiveIntensity: 1.0,
   });
-  const logs = [];
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * TAU + 0.3;
     const len = 0.95 + rng() * 0.2;
@@ -404,7 +400,6 @@ function buildFire(scene, state) {
     log.position.copy(foot).add(top).multiplyScalar(0.5);
     log.castShadow = true;
     fire.add(log);
-    logs.push(log);
   }
   // two unburnt spare logs by the ring
   const spareMat = new THREE.MeshStandardMaterial({ color: 0x5a4330, roughness: 0.95 });
@@ -513,6 +508,7 @@ function buildFire(scene, state) {
   fire.add(ember);
 
   state.colliders.push({ x: 0, z: 0, r: 1.5 });
+  mergeStatic(fire);      // stones, lumps, logs: one mesh per material
 
   // smooth 1-D value noise for flicker and wind lean
   const nz = (x) => {
@@ -586,9 +582,9 @@ function buildTable(scene, state, angDeg, dist) {
   G.position.set(x, 0, z);
   G.rotation.y = Math.atan2(-x, -z);
   scene.add(G);
-  const rockTex = makeRockTexture('paleGrey', 12);
+  const rockTex = makeRockTexture('paleGrey');
   const legMat = new THREE.MeshStandardMaterial({ map: rockTex.map, normalMap: rockTex.normalMap, roughness: 0.95 });
-  const slabMat = new THREE.MeshStandardMaterial({ map: makeRockTexture('sandstone', 4).map, roughness: 0.8 });
+  const slabMat = new THREE.MeshStandardMaterial({ map: makeRockTexture('sandstone').map, roughness: 0.8 });
   for (const lx of [-0.85, 0.85]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.94, 0.6), legMat);
     leg.position.set(lx, 0.47, 0);
@@ -643,10 +639,18 @@ function buildTable(scene, state, angDeg, dist) {
 // info cards readable from BOTH sides of a table. BoxGeometry already lays
 // the back (-z) face's UVs out to read correctly from behind, so both faces
 // share the same texture — flipping it (as this once did) mirrored the text.
+const cardClay = new THREE.MeshStandardMaterial({ color: 0xc8b190 });
+const cardGeo = (() => {
+  // six box faces as two draw groups: four clay edges, then both printed faces
+  const g = new THREE.BoxGeometry(0.17, 0.12, 0.012);
+  g.clearGroups();
+  g.addGroup(0, 24, 0);
+  g.addGroup(24, 12, 1);
+  return g;
+})();
 function cardMesh(tex) {
-  const clay = new THREE.MeshStandardMaterial({ color: 0xc8b190 });
   const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
-  return new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.012), [clay, clay, clay, clay, face, face]);
+  return new THREE.Mesh(cardGeo, [cardClay, face]);
 }
 
 function speckleTex(bg, colors, n = 260) {
@@ -668,12 +672,14 @@ function speckleTex(bg, colors, n = 260) {
   return t;
 }
 
+const bowlMat = new THREE.MeshStandardMaterial({ color: 0x9a6c42, roughness: 0.75, side: THREE.DoubleSide });
+const huskMat = new THREE.MeshStandardMaterial({ color: 0xb8a86a, roughness: 0.9, side: THREE.DoubleSide });
+
 function bowlWith(tex, r = 0.11) {
   const G = new THREE.Group();
   const prof = [[0, 0.004], [0.05, 0.006], [r * 0.82, 0.02], [r, 0.055], [r * 1.04, 0.075]];
   const bowl = new THREE.Mesh(
-    new THREE.LatheGeometry(prof.map(([rr, y]) => new THREE.Vector2(rr, y)), 20),
-    new THREE.MeshStandardMaterial({ color: 0x9a6c42, roughness: 0.75, side: THREE.DoubleSide }));
+    new THREE.LatheGeometry(prof.map(([rr, y]) => new THREE.Vector2(rr, y)), 20), bowlMat);
   bowl.castShadow = true;
   G.add(bowl);
   const disc = new THREE.Mesh(new THREE.CircleGeometry(r * 0.86, 20),
@@ -702,7 +708,6 @@ function maizeCob(color) {
     new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }));
   cob.castShadow = true;
   G.add(cob);
-  const huskMat = new THREE.MeshStandardMaterial({ color: 0xb8a86a, roughness: 0.9, side: THREE.DoubleSide });
   for (const s of [-1, 1]) {
     const husk = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.13, 6, 1, true), huskMat);
     husk.position.set(s * 0.02, -0.11, 0);
@@ -787,6 +792,7 @@ function buildLanternPost() {
   }
   const flame = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe2a8 }));
   flame.position.set(0, 1.93, 0.4); flame.scale.y = 1.7;
+  flame.userData.keep = true;      // it flickers
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
     map: (() => { const { canvas, ctx } = makeCanvas(64, 64); const g = ctx.createRadialGradient(32, 32, 1, 32, 32, 31);
       g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
@@ -807,6 +813,7 @@ export function buildPlaza(world) {
   // benches
   const benchMat = new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: 0.9 });
   const footMat = new THREE.MeshStandardMaterial({ color: 0x6a655e, roughness: 0.95 });
+  const benches = new THREE.Group();
   for (const a of [100, 215, 335]) {
     const r = a * Math.PI / 180;
     const bx = Math.cos(r) * 3.6, bz = Math.sin(r) * 3.6;
@@ -823,11 +830,14 @@ export function buildPlaza(world) {
       f.position.set(s, 0.15, 0);
       B.add(f);
     }
-    scene.add(B);
+    benches.add(B);
     state.colliders.push({ x: bx, z: bz, r: 0.68 });
     log.userData.interact = { type: 'bench', spot: { x: bx, z: bz, yaw: Math.atan2(-bx, -bz) } };
     state.interactables.push(log);
   }
+
+  mergeStatic(benches);
+  scene.add(benches);
 
   // --- the pottery bar ---
   const bar = buildTable(scene, state, 152, 7.2);
@@ -846,7 +856,7 @@ export function buildPlaza(world) {
     card.position.set(lx, 1.13, 0.3);
     card.rotation.x = -0.3;
     bar.G.add(card);
-    card.userData.interact = { type: 'overlay', data: { kicker: v.kicker, title: v.otitle, titlesub: v.name + ' · ' + v.drink, meta: v.meta, body: v.body, source: v.source, link: v.link } };
+    card.userData.interact = { type: 'overlay', data: { where: 'The pottery bar', title: v.otitle, titlesub: `${v.name}: ${v.drink}`, meta: v.meta, body: v.body, source: v.source, link: v.link } };
     state.interactables.push(card);
   });
 
@@ -935,10 +945,12 @@ export function buildPlaza(world) {
     food.G.add(card);
     card.userData.interact = {
       type: 'overlay',
-      data: { kicker: 'FROM THE HEARTH — FOODS THAT FED WORLDS', title: f.title, titlesub: f.sub, meta: [], body: f.body, source: f.source, link: f.link },
+      data: { where: 'The foods table', title: f.title, titlesub: f.sub, meta: [], body: f.body, source: f.source, link: f.link },
     };
     state.interactables.push(card);
   });
+  mergeStatic(bar.G);
+  mergeStatic(food.G);
 
   // --- title monolith at the spawn path ---
   // Seated properly: sample the terrain under its whole footprint and sink
@@ -955,7 +967,7 @@ export function buildPlaza(world) {
   }
   const MH = 2.7 + (gMax - gMin) + 0.3;      // grows so the face above ground stays ~2.7 m
   const mTex = makeSteleTexture('FIRST MARKS', 'an open-air gallery of the world\'s petroglyphs');
-  const mSide = makeRockTexture('varnish', 9);
+  const mSide = makeRockTexture('varnish');
   const mGeo = new THREE.BoxGeometry(1.5, MH, 0.6, 8, 12, 4);
   const mSideMat = new THREE.MeshStandardMaterial({ map: mSide.map, normalMap: mSide.normalMap, roughness: 0.95 });
   const mono = new THREE.Mesh(mGeo, [mSideMat, mSideMat, mSideMat, mSideMat,
@@ -968,6 +980,7 @@ export function buildPlaza(world) {
   state.interactables.push(mono);
   state.colliders.push({ x: mx, z: mz, r: 1.1 });
   const rubbleMat = new THREE.MeshStandardMaterial({ map: mSide.map, roughness: 1, color: 0xb8a898 });
+  const rubble = new THREE.Group();
   for (let i = 0; i < 7; i++) {
     const u = (i / 6 - 0.5) * 1.9, v = (rng() > 0.5 ? 1 : -1) * (0.34 + rng() * 0.12);
     const rx = mx + rgt.x * u + fwd.x * v, rz = mz + rgt.z * u + fwd.z * v;
@@ -976,8 +989,10 @@ export function buildPlaza(world) {
     r.position.set(rx, terrainHeight(rx, rz) + 0.01, rz);
     r.rotation.set(rng() * 3, rng() * 3, rng() * 3);
     r.castShadow = r.receiveShadow = true;
-    scene.add(r);
+    rubble.add(r);
   }
+  mergeStatic(rubble);
+  scene.add(rubble);
 
   // Its light now comes from somewhere: an iron lantern post, in the same
   // bronze as the gallery sconces, standing front-left of the stone.
@@ -985,6 +1000,7 @@ export function buildPlaza(world) {
   const lx = mx + fwd.x * 1.25 - rgt.x * 1.05, lz = mz + fwd.z * 1.25 - rgt.z * 1.05;
   lantern.group.position.set(lx, terrainHeight(lx, lz) - 0.15, lz);
   lantern.group.rotation.y = Math.atan2(mx - lx, mz - lz);     // arm reaches toward the stone
+  mergeStatic(lantern.group);
   scene.add(lantern.group);
   state.colliders.push({ x: lx, z: lz, r: 0.25 });
   lantern.group.updateMatrixWorld(true);

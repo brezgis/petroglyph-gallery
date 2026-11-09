@@ -35,86 +35,75 @@ function speckle(ctx, W, H, rng, n, a = 0.05) {
   }
 }
 
+// The lectern plaque: a dark bronze plate with the label's essentials cut in
+// pale letters, drawn at 2× so it stays sharp up close. The full text lives
+// on the reading card (E).
 export function makePlaqueTexture(def) {
-  const W = 512, H = 360;
+  const W = 1024, H = 720;
   const { canvas, ctx } = makeCanvas(W, H);
   const rng = mulberry(def.seed * 17 + 3);
   const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, '#eadfc4'); grad.addColorStop(1, '#dcccab');
+  grad.addColorStop(0, '#2f2720'); grad.addColorStop(1, '#231d18');
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  speckle(ctx, W, H, rng, 700, 0.04);
-  ctx.strokeStyle = '#8a6f4a'; ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, W - 20, H - 20);
-  ctx.strokeStyle = 'rgba(138,111,74,0.55)'; ctx.lineWidth = 1;
-  ctx.strokeRect(16, 16, W - 32, H - 32);
+  speckle(ctx, W, H, rng, 1400, 0.035);
+  ctx.strokeStyle = 'rgba(217,169,95,0.35)'; ctx.lineWidth = 2;
+  ctx.strokeRect(26, 26, W - 52, H - 52);
 
-  ctx.fillStyle = '#a1471f';
-  ctx.font = `11px ${SERIF}`;
-  ctx.textAlign = 'center';
-  ctx.fillText(def.location.toUpperCase().split('').join(' '), W / 2, 52);
+  const L = 84;                     // left margin: labels read left-aligned
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#d9a95f';
+  ctx.font = `30px ${SERIF}`;
+  ctx.fillText(def.location, L, 130);
 
-  ctx.fillStyle = '#241c12';
-  const ts = fitText(ctx, def.title, W - 70, 34, '');
+  ctx.fillStyle = '#efe3cc';
+  const ts = fitText(ctx, def.title, W - L * 2, 76);
   ctx.font = `${ts}px ${SERIF}`;
-  ctx.fillText(def.title, W / 2, 100);
+  ctx.fillText(def.title, L, 130 + 22 + ts);
 
-  ctx.font = `italic 15px ${SERIF}`;
-  ctx.fillStyle = '#5c4c34';
-  const siteLines = wrap(ctx, def.site, W - 90);
-  let y = 138;
-  for (const l of siteLines.slice(0, 2)) { ctx.fillText(l, W / 2, y); y += 22; }
+  ctx.font = `italic 32px ${SERIF}`;
+  ctx.fillStyle = '#b9ad97';
+  let y = 130 + 22 + ts + 62;
+  for (const l of wrap(ctx, def.site, W - L * 2).slice(0, 2)) { ctx.fillText(l, L, y); y += 44; }
 
-  y += 4;
-  ctx.strokeStyle = '#8a6f4a'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(W / 2 - 70, y); ctx.lineTo(W / 2 - 12, y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W / 2 + 12, y); ctx.lineTo(W / 2 + 70, y); ctx.stroke();
-  ctx.save();
-  ctx.translate(W / 2, y); ctx.rotate(Math.PI / 4);
-  ctx.strokeRect(-4, -4, 8, 8);
-  ctx.restore();
+  ctx.font = `30px ${SERIF}`;
+  ctx.fillStyle = '#d8ccb4';
+  y = Math.max(y + 30, H - 170);
+  const culture = def.culture.length > 48 ? def.culture.slice(0, 46) + '…' : def.culture;
+  ctx.fillText(culture, L, y);
+  ctx.fillText(def.date, L, y + 44);
 
-  y += 34;
-  ctx.font = `15px ${SERIF}`;
-  ctx.fillStyle = '#33291b';
-  ctx.fillText(def.culture.length > 52 ? def.culture.slice(0, 50) + '…' : def.culture, W / 2, y);
-  y += 24;
-  ctx.fillText(def.date, W / 2, y);
-
-  ctx.font = `12px ${SERIF}`;
-  ctx.fillStyle = '#7a6444';
-  ctx.fillText('E  —  R E A D   T H E   L A B E L', W / 2, H - 34);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   return tex;
 }
 
+// The little tent cards on the bar and the foods table, drawn at 2×.
 export function makeCardTexture(title, sub) {
-  const W = 256, H = 180;
+  const W = 512, H = 360;
   const { canvas, ctx } = makeCanvas(W, H);
   const rng = mulberry(title.length * 71 + 9);
-  ctx.fillStyle = '#c8b190'; ctx.fillRect(0, 0, W, H);
-  speckle(ctx, W, H, rng, 420, 0.05);
-  ctx.strokeStyle = 'rgba(90,70,45,0.8)'; ctx.lineWidth = 1.5;
-  ctx.strokeRect(7, 7, W - 14, H - 14);
+  ctx.fillStyle = '#cdb795'; ctx.fillRect(0, 0, W, H);
+  speckle(ctx, W, H, rng, 900, 0.05);
+  ctx.strokeStyle = 'rgba(90,70,45,0.7)'; ctx.lineWidth = 3;
+  ctx.strokeRect(14, 14, W - 28, H - 28);
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#3a2c1a';
-  const ts = fitText(ctx, title, W - 34, 26);
+  ctx.fillStyle = '#2e2315';
+  const ts = fitText(ctx, title, W - 68, 54);
   ctx.font = `${ts}px ${SERIF}`;
-  const lines = wrap(ctx, title, W - 34);
-  let y = lines.length > 1 ? 66 : 80;
-  for (const l of lines.slice(0, 2)) { ctx.fillText(l, W / 2, y); y += ts + 4; }
+  const lines = wrap(ctx, title, W - 68);
+  let y = lines.length > 1 ? 150 : 180;
+  for (const l of lines.slice(0, 2)) { ctx.fillText(l, W / 2, y); y += ts + 8; }
   if (sub) {
-    ctx.font = `italic 14px ${SERIF}`;
-    ctx.fillStyle = '#5f4a30';
-    ctx.fillText(sub, W / 2, y + 6);
+    const ss = fitText(ctx, sub, W - 68, 28, '', 'italic');
+    ctx.font = `italic ${ss}px ${SERIF}`;
+    ctx.fillStyle = '#5a4630';
+    ctx.fillText(sub, W / 2, y + 14);
   }
-  ctx.font = `11px ${SERIF}`;
-  ctx.fillStyle = '#6e563a';
-  ctx.fillText('E — read', W / 2, H - 22);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   return tex;
 }
 

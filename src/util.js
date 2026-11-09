@@ -62,8 +62,37 @@ export function fbm3(x, y, z, oct = 3) {
   return f / tot;
 }
 
-export function makeCanvas(w, h) {
+// willRead: keep the canvas in CPU memory. Reading pixels back from a
+// GPU-backed canvas stalls the pipeline (it cost seconds per startup).
+export function makeCanvas(w, h, willRead = false) {
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
-  return { canvas, ctx: canvas.getContext('2d') };
+  return { canvas, ctx: canvas.getContext('2d', willRead ? { willReadFrequently: true } : undefined) };
+}
+
+// Seamlessly tiling fBm on a size×size grid: value noise whose lattice wraps
+// every `cells` cells (doubling per octave), so the field repeats exactly.
+// Returns values in about [-1, 1].
+export function tileFbm(size, cells, oct, seed = 1) {
+  const out = new Float32Array(size * size);
+  const rng = mulberry(seed * 977 + 1);
+  let amp = 0.5, tot = 0, c = cells;
+  for (let o = 0; o < oct; o++) {
+    const lat = new Float32Array(c * c);
+    for (let i = 0; i < lat.length; i++) lat[i] = rng() * 2 - 1;
+    const k = c / size;
+    for (let y = 0; y < size; y++) {
+      const fy = y * k, yi = Math.floor(fy), v = fade(fy - yi);
+      const r0 = (yi % c) * c, r1 = ((yi + 1) % c) * c;
+      for (let x = 0; x < size; x++) {
+        const fx = x * k, xi = Math.floor(fx), u = fade(fx - xi);
+        const x0 = xi % c, x1 = (xi + 1) % c;
+        const a = lat[r0 + x0], b = lat[r0 + x1], d0 = lat[r1 + x0], d1 = lat[r1 + x1];
+        out[y * size + x] += ((a + (b - a) * u) * (1 - v) + (d0 + (d1 - d0) * u) * v) * amp;
+      }
+    }
+    tot += amp; amp *= 0.5; c *= 2;
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= tot;
+  return out;
 }

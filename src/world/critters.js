@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { mulberry, TAU, clamp } from '../util.js';
 import { REGIONS, regionCenter } from '../layout.js';
 import { terrainHeight } from './terrain.js';
+import { mergeStatic } from './merge.js';
 
 export function buildCritters(world) {
   const { scene } = world;
@@ -33,12 +34,14 @@ export function buildCritters(world) {
     const tail = new THREE.Mesh(new THREE.ConeGeometry(0.011, 0.1, 6), darkMat);
     tail.rotation.z = Math.PI / 2;
     tail.position.set(-0.085, 0, 0);
+    tail.userData.keep = true;     // it twitches
     g.add(tail);
     for (const [lx, lz] of [[0.028, 0.022], [0.028, -0.022], [-0.03, 0.022], [-0.03, -0.022]]) {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.007, 0.026), darkMat);
       leg.position.set(lx, -0.011, lz);
       g.add(leg);
     }
+    mergeStatic(g);
     const spot = spots[i % spots.length];
     const L = {
       g, tail,

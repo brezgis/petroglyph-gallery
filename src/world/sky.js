@@ -142,7 +142,7 @@ export function buildSky(world) {
 
   scene.fog = new THREE.FogExp2(0x554a68, 0.0062);
   const fogDusk = new THREE.Color(0x554a68), fogNight = new THREE.Color(0x121520);
-  const keyDusk = new THREE.Color(0xff9a55), keyNight = new THREE.Color(0xa9c1ff);
+  const keyDusk = new THREE.Color(0xf0a070), keyNight = new THREE.Color(0xa9c1ff);
   const duskPos = DUSK_SUN.clone().setY(0.18).normalize().multiplyScalar(170);
   const moonPos = MOON_DIR.clone().multiplyScalar(170);
 
@@ -157,14 +157,15 @@ export function buildSky(world) {
     domeUniforms.uNight.value = night;
     starUniforms.uTime.value = time;
     starUniforms.uNight.value = night;
+    starUniforms.uPR.value = Math.min(renderer.getPixelRatio(), 2);   // follows the adaptive resolution
     moonGlow.material.opacity = 0.20 + 0.32 * night;
     moon.material.opacity = 0.75 + 0.25 * night;
 
     key.color.lerpColors(keyDusk, keyNight, night);
-    key.intensity = lerp(2.0, 0.7, night);   // a touch more moonlight: night read as murky
+    key.intensity = lerp(1.75, 0.7, night);   // a touch more moonlight: night read as murky
     key.position.lerpVectors(duskPos, moonPos, night);
 
-    hemi.intensity = lerp(0.55, 0.38, night);
+    hemi.intensity = lerp(0.62, 0.4, night);
     scene.fog.color.lerpColors(fogDusk, fogNight, night);
     scene.fog.density = lerp(0.0060, 0.0078, night);
 

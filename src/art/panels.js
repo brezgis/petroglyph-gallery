@@ -713,8 +713,6 @@ for (const [id, link] of Object.entries(LINKS)) if (PANELS[id]) PANELS[id].link 
 for (const [id, layers] of Object.entries(GLYPHS)) {
   const def = PANELS[id];
   if (!def) continue;
-  def.drawHand = def.draw;
   def.draw = (g) => { for (const L of layers) g.mask(L); };
-  def.extracted = true;
   def.glyphCredit = GLYPH_CREDITS[id];
 }
